@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How Can Max Win It?</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            "f1-red": "#ff1801",
+          },
+          fontFamily: {
+            sans: ['"Inter"', "system-ui", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+</head>
+
+<body class="bg-slate-50 font-sans text-slate-900 pb-20 lg:pb-0">
+  <div class="px-4 py-4 md:py-8 md:px-8">
+    <main class="flex flex-col lg:flex-row lg:flex-nowrap gap-6 lg:gap-8">
+      <aside class="space-y-4 lg:space-y-6 self-start lg:sticky lg:top-6 w-full lg:w-2/5 order-2 lg:order-1">
+        <article class="p-0">
+          <div class="flex items-center justify-between text-sm">
+            <div>
+              <h2 class="text-lg md:text-xl font-semibold">Live standings projection</h2>
+              <p class="text-xs text-slate-500">
+                Base points plus every adjustment you make.
+              </p>
+            </div>
+          </div>
+          <div class="mt-4 lg:mt-5">
+            <div id="standings-body" class="space-y-2"></div>
+          </div>
+        </article>
+      </aside>
+
+      <section class="space-y-6 lg:space-y-8 w-full lg:w-3/5 order-1 lg:order-2">
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl pt-2 md:pt-4">
+          <div></div>
+          <div class="flex flex-wrap items-center gap-2 text-xs relative">
+            <button id="menu-button"
+              class="rounded-full border border-slate-300 p-2.5 md:p-2 text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 active:bg-slate-100 touch-manipulation"
+              type="button" aria-label="Menu">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="md:w-4 md:h-4">
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="12" cy="5" r="1"></circle>
+                <circle cx="12" cy="19" r="1"></circle>
+              </svg>
+            </button>
+            <div id="dropdown-menu"
+              class="hidden absolute right-0 top-full mt-2 w-64 md:w-56 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
+              <div class="py-1">
+                <button id="restore-defaults"
+                  class="w-full text-left px-4 py-3 md:py-2 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition touch-manipulation"
+                  type="button">
+                  Reset all sessions
+                </button>
+                <button id="select-key-drivers"
+                  class="w-full text-left px-4 py-3 md:py-2 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition touch-manipulation"
+                  type="button">
+                  Select key drivers
+                </button>
+              </div>
+              <div class="border-t border-slate-200"></div>
+              <div class="py-1">
+                <div class="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Race View
+                </div>
+                <button id="show-past-races"
+                  class="w-full text-left px-4 py-3 md:py-2 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition flex items-center justify-between touch-manipulation"
+                  type="button">
+                  <span>Show past races</span>
+                  <span id="show-past-check" class="hidden text-emerald-600">✓</span>
+                </button>
+              </div>
+              <div class="border-t border-slate-200"></div>
+              <div class="py-1">
+                <div class="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Standings View
+                </div>
+                <button id="show-all-standings"
+                  class="w-full text-left px-4 py-3 md:py-2 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition flex items-center justify-between touch-manipulation"
+                  type="button">
+                  <span>Show all drivers</span>
+                  <span id="show-all-check" class="hidden text-emerald-600">✓</span>
+                </button>
+                <button id="show-key-standings"
+                  class="w-full text-left px-4 py-3 md:py-2 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition flex items-center justify-between touch-manipulation"
+                  type="button">
+                  <span>Show key drivers</span>
+                  <span id="show-key-check" class="text-emerald-600">✓</span>
+                </button>
+              </div>
+              <div class="border-t border-slate-200"></div>
+              <div class="py-1">
+                <div class="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Quick Actions
+                </div>
+                <button id="max-p1-all"
+                  class="w-full text-left px-4 py-3 md:py-2 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition touch-manipulation"
+                  type="button">
+                  Max P1 for all
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="sessions" class="space-y-6 !mt-3"></div>
+
+      </section>
+    </main>
+
+    <footer class="mt-8 md:mt-12 border-t border-slate-200 pt-4 md:pt-6 text-xs text-slate-500 space-y-4">
+
+      <details class="mt-4">
+        <summary class="cursor-pointer font-mono text-slate-300 hover:text-slate-900 text-center">Debug</summary>
+        <article class="mt-2 rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm shadow-slate-200/60">
+          <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-900">
+            <h2 class="text-lg md:text-xl font-semibold">Session JSON</h2>
+            <div class="flex flex-wrap gap-2">
+              <button id="copy-json"
+                class="rounded-full border border-slate-300 px-4 py-2.5 md:py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:border-emerald-400/60 hover:text-emerald-600 active:bg-emerald-50 touch-manipulation"
+                type="button">
+                Copy JSON
+              </button>
+              <button id="load-json"
+                class="rounded-full border border-slate-300 px-4 py-2.5 md:py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:border-f1-red/50 hover:text-f1-red active:bg-red-50 touch-manipulation"
+                type="button">
+                Load JSON
+              </button>
+            </div>
+          </div>
+          <p class="mt-2 text-xs text-slate-500">
+            Everything you drag and drop mirrors into this array. Edit it or
+            paste new results to refresh the simulator.
+          </p>
+          <textarea id="session-json"
+            class="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 md:p-4 text-xs font-mono text-slate-800 focus:border-f1-red focus:outline-none focus:ring-1 focus:ring-f1-red"
+            rows="14" spellcheck="false"></textarea>
+          <p id="json-feedback" class="mt-2 text-xs text-slate-500"></p>
+        </article>
+      </details>
+
+      <div class="flex flex-col space-y-2">
+
+        <p class="text-center">Built with <span class="text-red-600">♥</span> by <a class="underline hover:text-black" href="https://lazharichir.com/" target="_blank">Lazhar Ichir</a>.</p>
+
+        <p class="text-center">Find me on <a class="underline hover:text-black" href="https://x.com/lazharichir"
+            target="_blank">x.com/lazharichir</a> and <a class="underline hover:text-black"
+            href="https://github.com/lazharichir" target="_blank">github.com/lazharichir</a>).</p>
+
+      </div>
+    </footer>
+  </div>
+
+  <!-- Key Drivers Modal -->
+  <div id="key-drivers-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div
+      class="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] md:max-h-[80vh] overflow-hidden flex flex-col">
+      <div class="p-4 md:p-6 border-b border-slate-200">
+        <h2 class="text-lg md:text-xl font-semibold text-slate-900">Select Key Drivers</h2>
+        <p class="text-xs md:text-sm text-slate-500 mt-1">Choose which drivers to highlight. Selected drivers will be
+          shown at full opacity, others will be faded.</p>
+      </div>
+      <div class="p-4 md:p-6 overflow-y-auto flex-1">
+        <div id="key-drivers-list" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+      </div>
+      <div class="p-4 md:p-6 border-t border-slate-200 flex justify-end gap-3">
+        <button id="cancel-key-drivers"
+          class="px-4 py-2.5 md:py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 active:bg-slate-100 transition touch-manipulation"
+          type="button">
+          Cancel
+        </button>
+        <button id="save-key-drivers"
+          class="px-4 py-2.5 md:py-2 text-sm font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-800 active:bg-slate-700 transition touch-manipulation"
+          type="button">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fixed Mobile Footer with Top 3 -->
+  <div id="mobile-top3-footer"
+    class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg lg:hidden z-40">
+    <div class="px-4 py-3">
+      <div id="top3-container" class="flex items-center justify-between gap-2"></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      let driverData = [];
+
+      const driverLookup = {};
+
+      const teamPalette = {
+        McLaren: {
+          bg: "#FFF4E5",
+          border: "#FFD2A0",
+          text: "#8B4513",
+          accent: "#FF8C1A",
+          muted: "#C16C2B",
+        },
+        "Red Bull": {
+          bg: "#EEF1FF",
+          border: "#C7D2FE",
+          text: "#1E1B4B",
+          accent: "#4338CA",
+          muted: "#7C83D6",
+        },
+        Mercedes: {
+          bg: "#E6FBF7",
+          border: "#B5F2E3",
+          text: "#0F5132",
+          accent: "#0D9488",
+          muted: "#4BA397",
+        },
+        Ferrari: {
+          bg: "#FFF1F1",
+          border: "#FFC4C4",
+          text: "#7F1D1D",
+          accent: "#DC2626",
+          muted: "#B91C1C",
+        },
+        Williams: {
+          bg: "#EEF5FF",
+          border: "#BFD9FF",
+          text: "#103B75",
+          accent: "#2563EB",
+          muted: "#5B7DB8",
+        },
+        "RB": {
+          bg: "#F4F1FF",
+          border: "#CEC6FF",
+          text: "#312E81",
+          accent: "#6366F1",
+          muted: "#7C82CF",
+        },
+        Sauber: {
+          bg: "#F0FFF4",
+          border: "#C0F0D1",
+          text: "#14532D",
+          accent: "#22C55E",
+          muted: "#4BA268",
+        },
+        "Aston Martin": {
+          bg: "#ECFDF5",
+          border: "#B7E4D4",
+          text: "#064E3B",
+          accent: "#0F9D58",
+          muted: "#4E9B7F",
+        },
+        Haas: {
+          bg: "#FFF1F2",
+          border: "#FECACA",
+          text: "#7F1D1D",
+          accent: "#EF4444",
+          muted: "#B84A4A",
+        },
+        Alpine: {
+          bg: "#F5F3FF",
+          border: "#DDD6FE",
+          text: "#312E81",
+          accent: "#6366F1",
+          muted: "#7C82CF",
+        },
+        default: {
+          bg: "#F8FAFC",
+          border: "#CBD5F5",
+          text: "#1F2937",
+          accent: "#2563EB",
+          muted: "#6B7280",
+        },
+      };
+
+      const ORDER_BOUNDARY_BIAS = 0.55; // share of a badge counted as "before" for drop targets
+
+      const scoring = {
+        race: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
+        sprint: [8, 7, 6, 5, 4, 3, 2, 1],
+      };
+
+      const defaultOrder = driverData.map((driver) => driver.id);
+
+      // Utility: Get current time (cached for performance during a single render cycle)
+      const getCurrentTime = (() => {
+        let cached = null;
+        return (refresh = false) => {
+          if (!cached || refresh) {
+            cached = new Date();
+          }
+          return cached;
+        };
+      })();
+
+      // Utility: Check if a session is in the past (using full datetime from API)
+      function isPastRaceSession(sessionId) {
+        const session = sessions.find((s) => s.id === sessionId);
+        if (!session?.date) return false;
+        
+        // Combine date and time from API (e.g., "2025-03-16T04:00:00Z")
+        const sessionTime = session.time || '23:59:59Z';
+        const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+        
+        return sessionDateTime < getCurrentTime();
+      }
+
+      let sessionConfigs = [];
+      let sessionsTemplate = [];
+      let sessions = [];
+      let keyDrivers = ["VER", "PIA", "NOR"];
+      let standingsFilter = "key"; // "all" or "key"
+      let showPastRaces = false; // false = only future races, true = all races
+      let loadedFromHash = false;
+
+      // Function to apply actual race results to sessions
+      function applyRaceResults(sessions, raceResults, sprintResults) {
+        // Create lookup maps by round number
+        const raceResultsByRound = {};
+        const sprintResultsByRound = {};
+        
+        raceResults.forEach(race => {
+          raceResultsByRound[race.round] = race.Results || [];
+        });
+        
+        sprintResults.forEach(race => {
+          sprintResultsByRound[race.round] = race.SprintResults || [];
+        });
+        
+        // Apply results to matching sessions
+        sessions.forEach(session => {
+          if (!session.round) return;
+          
+          let results = null;
+          if (session.type === 'sprint' && sprintResultsByRound[session.round]) {
+            results = sprintResultsByRound[session.round];
+          } else if (session.type === 'race' && raceResultsByRound[session.round]) {
+            results = raceResultsByRound[session.round];
+          }
+          
+          if (!results || results.length === 0) return;
+          
+          // Map results to driver positions
+          const positions = [];
+          const dnfs = [];
+          
+          results.forEach(result => {
+            const driverCode = result.Driver.code;
+            
+            // Check if driver finished the race
+            const status = result.status || '';
+            const isFinished = status === 'Finished' || status.includes('Lap');
+            
+            if (isFinished && driverCode) {
+              positions.push(driverCode);
+            } else if (driverCode) {
+              dnfs.push(driverCode);
+            }
+          });
+          
+          // Only apply if we have valid results
+          if (positions.length > 0) {
+            session.positions = positions;
+            session.dnfs = dnfs;
+          }
+        });
+      }
+
+      // Fetch race data and driver standings from API
+      async function loadRaceData() {
+        try {
+          // Load both race data and driver standings in parallel
+          const [racesResponse, standingsResponse, resultsResponse, sprintResultsResponse] = await Promise.all([
+            fetch('/data/races-2025.json'),
+            fetch('/data/driver-standings-2025.json'),
+            fetch('/data/race-results-2025.json'),
+            fetch('/data/sprint-results-2025.json')
+          ]);
+          
+          const racesData = await racesResponse.json();
+          const standingsData = await standingsResponse.json();
+          const resultsData = await resultsResponse.json();
+          const sprintResultsData = await sprintResultsResponse.json();
+          
+          const races = racesData.MRData.RaceTable.Races;
+          const standings = standingsData.MRData.StandingsTable.StandingsLists[0].DriverStandings;
+          const raceResults = resultsData.MRData.RaceTable.Races;
+          const sprintResults = sprintResultsData.MRData.RaceTable.Races;
+          
+          // Map driver standings to driverData format
+          driverData = standings.map(standing => {
+            const driver = standing.Driver;
+            const constructor = standing.Constructors[0]; // Use first constructor
+            
+            // Create a short ID from driver code
+            const id = driver.code || driver.driverId.substring(0, 3).toUpperCase();
+            
+            return {
+              id: id,
+              name: `${driver.givenName} ${driver.familyName}`,
+              team: constructor.name,
+              basePoints: parseInt(standing.points)
+            };
+          });
+          
+          // Initialize driverLookup and set default key drivers to top 3
+          driverData.forEach((driver, index) => {
+            const parts = driver.name.split(" ");
+            let shortName = parts[parts.length - 1] || driver.name;
+            if (["Jnr", "Jr", "Jnr.", "Jr."].includes(shortName) && parts.length > 1) {
+              shortName = parts[parts.length - 2];
+            }
+            driver.shortName = shortName;
+            driver.code = createDriverCode(driver.name);
+            driver.baseRank = index + 1;
+            driverLookup[driver.id] = driver;
+          });
+          
+          // Set default key drivers to top 3 from standings (if not loading from hash)
+          if (!loadedFromHash && keyDrivers.length === 0) {
+            keyDrivers = driverData.slice(0, 3).map(d => d.id);
+          }
+          
+          // Process races and create session configs
+          sessionConfigs = [];
+          races.forEach((race) => {
+            const hasSprint = !!race.Sprint;
+            const circuitId = race.Circuit.circuitId;
+            const raceName = race.raceName;
+            const locality = race.Circuit.Location.locality;
+            const circuitName = race.Circuit.circuitName;
+            const circuitUrl = race.Circuit.url;
+            
+            // Create a safe ID from race name
+            const baseId = raceName.toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '');
+            
+            // Add sprint session if race has one
+            if (hasSprint) {
+              sessionConfigs.push({
+                id: `${baseId}-sprint`,
+                label: `${raceName} Sprint`,
+                event: raceName,
+                type: "sprint",
+                description: `Sprint race at ${circuitName}, ${locality}.`,
+                circuitName: circuitName,
+                circuitUrl: circuitUrl,
+                round: race.round,
+                date: race.Sprint.date,
+                time: race.Sprint.time,
+              });
+            }
+            
+            // Add main race session
+            sessionConfigs.push({
+              id: `${baseId}-race`,
+              label: raceName,
+              event: raceName,
+              type: "race",
+              description: `Race at ${circuitName}, ${locality}.`,
+              circuitName: circuitName,
+              circuitUrl: circuitUrl,
+              round: race.round,
+              date: race.date,
+              time: race.time,
+            });
+          });
+
+          // Initialize sessions template
+          sessionsTemplate = sessionConfigs.map((config, index) =>
+            normaliseSession({
+              ...config,
+              positions: config.positions ?? defaultOrder,
+              dnfs: config.dnfs ?? [],
+              enabled: config.enabled ?? (index === 0), // Only first session enabled by default
+            })
+          );
+
+          // Apply actual results to past race sessions
+          applyRaceResults(sessionsTemplate, raceResults, sprintResults);
+
+          sessions = cloneSessions(sessionsTemplate);
+
+          // Check for hash data after loading races
+          const dataFromHash = getSessionsFromHash();
+          if (dataFromHash) {
+            sessions = dataFromHash.sessions;
+            if (dataFromHash.keyDrivers) {
+              keyDrivers = dataFromHash.keyDrivers;
+            }
+            if (dataFromHash.standingsFilter) {
+              standingsFilter = dataFromHash.standingsFilter;
+            }
+            if (dataFromHash.showPastRaces !== undefined) {
+              showPastRaces = dataFromHash.showPastRaces;
+            }
+            loadedFromHash = true;
+          }
+
+          // Initialize the app
+          initializeApp();
+        } catch (error) {
+          console.error('Failed to load race data:', error);
+          // Fallback to empty sessions
+          sessionConfigs = [];
+          sessionsTemplate = [];
+          sessions = [];
+          initializeApp();
+        }
+      }
+
+      function initializeApp() {
+        renderSessions();
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+
+        // Update checkmarks based on current standingsFilter
+        if (standingsFilter === "all") {
+          showAllCheck.classList.remove("hidden");
+          showKeyCheck.classList.add("hidden");
+        } else {
+          showAllCheck.classList.add("hidden");
+          showKeyCheck.classList.remove("hidden");
+        }
+
+        // Update checkmark for past races
+        if (showPastRaces) {
+          showPastCheck.classList.remove("hidden");
+        } else {
+          showPastCheck.classList.add("hidden");
+        }
+
+        if (loadedFromHash) {
+          setJsonFeedback("Sessions loaded from shared link.", "info");
+        }
+      }
+
+      const dragContext = {
+        sessionId: null,
+        source: null,
+        driverId: null,
+        fromIndex: null,
+        insertIndex: null,
+        indicator: null,
+        indicatorIndex: null,
+      };
+
+      const sessionsContainer = document.getElementById("sessions");
+      const standingsBody = document.getElementById("standings-body");
+      const jsonTextarea = document.getElementById("session-json");
+      const jsonFeedback = document.getElementById("json-feedback");
+      const loadJsonButton = document.getElementById("load-json");
+      const copyJsonButton = document.getElementById("copy-json");
+      const restoreDefaultsButton = document.getElementById("restore-defaults");
+      const menuButton = document.getElementById("menu-button");
+      const dropdownMenu = document.getElementById("dropdown-menu");
+      const selectKeyDriversButton = document.getElementById("select-key-drivers");
+      const maxP1AllButton = document.getElementById("max-p1-all");
+      const showAllStandingsButton = document.getElementById("show-all-standings");
+      const showKeyStandingsButton = document.getElementById("show-key-standings");
+      const showAllCheck = document.getElementById("show-all-check");
+      const showKeyCheck = document.getElementById("show-key-check");
+      const showPastRacesButton = document.getElementById("show-past-races");
+      const showPastCheck = document.getElementById("show-past-check");
+      const keyDriversModal = document.getElementById("key-drivers-modal");
+      const keyDriversList = document.getElementById("key-drivers-list");
+      const cancelKeyDriversButton = document.getElementById("cancel-key-drivers");
+      const saveKeyDriversButton = document.getElementById("save-key-drivers");
+
+      let tempKeyDrivers = [];
+
+      // Load race data and start the app
+      loadRaceData();
+
+      // Dropdown menu toggle
+      menuButton.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdownMenu.classList.toggle("hidden");
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", (e) => {
+        if (!dropdownMenu.contains(e.target) && !menuButton.contains(e.target)) {
+          dropdownMenu.classList.add("hidden");
+        }
+      });
+
+      restoreDefaultsButton.addEventListener("click", () => {
+        dropdownMenu.classList.add("hidden");
+        sessions = cloneSessions(sessionsTemplate);
+        keyDrivers = driverData.slice(0, 3).map(d => d.id); // Reset to top 3 from standings
+        renderSessions();
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+        setJsonFeedback("Sessions and key drivers restored to defaults.", "info");
+      });
+
+      selectKeyDriversButton.addEventListener("click", () => {
+        dropdownMenu.classList.add("hidden");
+        openKeyDriversModal();
+      });
+
+      maxP1AllButton.addEventListener("click", () => {
+        dropdownMenu.classList.add("hidden");
+        setMaxP1ForAll();
+      });
+
+      showAllStandingsButton.addEventListener("click", () => {
+        standingsFilter = "all";
+        showAllCheck.classList.remove("hidden");
+        showKeyCheck.classList.add("hidden");
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+      });
+
+      showKeyStandingsButton.addEventListener("click", () => {
+        standingsFilter = "key";
+        showAllCheck.classList.add("hidden");
+        showKeyCheck.classList.remove("hidden");
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+      });
+
+      showPastRacesButton.addEventListener("click", () => {
+        showPastRaces = !showPastRaces;
+        if (showPastRaces) {
+          showPastCheck.classList.remove("hidden");
+        } else {
+          showPastCheck.classList.add("hidden");
+        }
+        renderSessions();
+        updateJsonEditor(true);
+      });
+
+      cancelKeyDriversButton.addEventListener("click", () => {
+        closeKeyDriversModal();
+      });
+
+      saveKeyDriversButton.addEventListener("click", () => {
+        keyDrivers = [...tempKeyDrivers];
+        closeKeyDriversModal();
+        renderSessions();
+        recalcAndRenderStandings(); // Re-render standings with updated key drivers
+        updateJsonEditor(true);
+        setJsonFeedback("Key drivers updated.", "success");
+      });
+
+      // Close modal when clicking outside
+      keyDriversModal.addEventListener("click", (e) => {
+        if (e.target === keyDriversModal) {
+          closeKeyDriversModal();
+        }
+      });
+
+      loadJsonButton.addEventListener("click", () => {
+        loadSessionsFromJson();
+      });
+
+      copyJsonButton.addEventListener("click", () => {
+        copyJsonToClipboard();
+      });
+
+      function openKeyDriversModal() {
+        tempKeyDrivers = [...keyDrivers];
+        renderKeyDriversList();
+        keyDriversModal.classList.remove("hidden");
+      }
+
+      function closeKeyDriversModal() {
+        keyDriversModal.classList.add("hidden");
+      }
+
+      function renderKeyDriversList() {
+        keyDriversList.innerHTML = "";
+        driverData.forEach((driver) => {
+          const isSelected = tempKeyDrivers.includes(driver.id);
+          const palette = teamPalette[driver.team] || teamPalette.default;
+
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "flex items-center gap-3 p-3 md:p-3 rounded-lg border transition hover:bg-slate-50 active:bg-slate-100 touch-manipulation";
+          item.style.borderColor = isSelected ? palette.accent : "#e2e8f0";
+          item.style.backgroundColor = isSelected ? "#fafafa" : "#ffffff";
+          item.style.borderLeftWidth = "4px";
+          item.style.borderLeftColor = palette.accent;
+
+          item.addEventListener("click", () => {
+            if (tempKeyDrivers.includes(driver.id)) {
+              tempKeyDrivers = tempKeyDrivers.filter(id => id !== driver.id);
+            } else {
+              tempKeyDrivers.push(driver.id);
+            }
+            renderKeyDriversList();
+          });
+
+          const checkbox = document.createElement("div");
+          checkbox.className = "flex-shrink-0 w-6 h-6 md:w-5 md:h-5 rounded border-2 flex items-center justify-center transition";
+          checkbox.style.borderColor = isSelected ? palette.accent : "#cbd5e1";
+          checkbox.style.backgroundColor = isSelected ? palette.accent : "#ffffff";
+          if (isSelected) {
+            checkbox.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          }
+          item.appendChild(checkbox);
+
+          const info = document.createElement("div");
+          info.className = "flex-1 text-left";
+
+          const driverName = document.createElement("div");
+          driverName.className = "text-sm font-semibold text-slate-900";
+          driverName.textContent = `${driver.code} - ${driver.name}`;
+          info.appendChild(driverName);
+
+          const teamName = document.createElement("div");
+          teamName.className = "text-xs text-slate-500";
+          teamName.textContent = driver.team;
+          info.appendChild(teamName);
+
+          item.appendChild(info);
+          keyDriversList.appendChild(item);
+        });
+      }
+
+      function setMaxP1ForAll() {
+        let futureCount = 0;
+        sessions.forEach((session) => {
+          // Skip past races - they're read-only
+          if (isPastRaceSession(session.id)) {
+            return;
+          }
+
+          futureCount++;
+
+          // Check if VER is in positions or DNF
+          const verInPositions = session.positions.includes("VER");
+          const verInDnf = session.dnfs.includes("VER");
+
+          if (verInDnf) {
+            // Remove VER from DNF
+            session.dnfs = session.dnfs.filter(id => id !== "VER");
+          }
+
+          if (verInPositions) {
+            // Remove VER from current position
+            session.positions = session.positions.filter(id => id !== "VER");
+          }
+
+          // Add VER at P1
+          session.positions.unshift("VER");
+        });
+
+        renderSessions();
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+        setJsonFeedback(`Max set to P1 for ${futureCount} future race${futureCount !== 1 ? 's' : ''}.`, "success");
+      }
+
+      function createDriverCode(name) {
+        const parts = name.split(" ");
+        let last = parts[parts.length - 1] || name;
+        if (["Jnr", "Jr", "Jnr.", "Jr."].includes(last) && parts.length > 1) {
+          last = parts[parts.length - 2];
+        }
+        return last.substring(0, 3).toUpperCase();
+      }
+
+      function normaliseSession(config) {
+        const dnfs = Array.isArray(config.dnfs)
+          ? config.dnfs.filter((driverId) => driverLookup[driverId])
+          : [];
+        const order = buildOrder(config.positions, dnfs);
+        return {
+          ...config,
+          positions: order,
+          dnfs,
+          enabled: config.enabled ?? true,
+        };
+      }
+
+      function buildOrder(positions, dnfs) {
+        const order = [];
+        const dnfSet = new Set(dnfs);
+        if (Array.isArray(positions)) {
+          positions.forEach((driverId) => {
+            if (driverLookup[driverId] && !dnfSet.has(driverId) && !order.includes(driverId)) {
+              order.push(driverId);
+            }
+          });
+        }
+        driverData.forEach((driver) => {
+          if (!dnfSet.has(driver.id) && !order.includes(driver.id)) {
+            order.push(driver.id);
+          }
+        });
+        return order;
+      }
+
+      function cloneSessions(list) {
+        return list.map((session) => ({
+          ...session,
+          positions: [...session.positions],
+          dnfs: [...session.dnfs],
+        }));
+      }
+
+      function encodeState(str) {
+        return btoa(
+          encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+            String.fromCharCode(parseInt(p1, 16))
+          )
+        );
+      }
+
+      function decodeState(str) {
+        return decodeURIComponent(
+          Array.from(atob(str))
+            .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, "0")}`)
+            .join("")
+        );
+      }
+
+      function buildSessionsFromData(data) {
+        const baseSessions = cloneSessions(sessionsTemplate).map((session) => ({
+          ...session,
+          positions: buildOrder(session.positions, session.dnfs),
+          dnfs: [...session.dnfs],
+        }));
+
+        const sessionById = {};
+        baseSessions.forEach((session) => {
+          sessionById[session.id] = session;
+        });
+
+        data.forEach((entry) => {
+          if (!entry || typeof entry !== "object") return;
+          const target = sessionById[entry.id];
+          if (!target) return;
+          const dnfs = Array.isArray(entry.dnfs)
+            ? entry.dnfs.filter((driverId) => driverLookup[driverId])
+            : [];
+          target.dnfs = dnfs;
+          target.positions = buildOrder(entry.positions, dnfs);
+          // Handle enabled flag, defaulting to true if not specified
+          if (entry.enabled !== undefined) {
+            target.enabled = entry.enabled;
+          }
+        });
+
+        return baseSessions;
+      }
+
+      function getSessionsFromHash() {
+        const encoded = window.location.hash ? window.location.hash.slice(1) : "";
+        if (!encoded) return null;
+        try {
+          const json = decodeState(encoded);
+          const parsed = JSON.parse(json);
+
+          // Handle both old format (array) and new format (object with keyDrivers)
+          if (Array.isArray(parsed)) {
+            return { sessions: buildSessionsFromData(parsed), keyDrivers: null, standingsFilter: null, showPastRaces: null };
+          } else if (parsed && typeof parsed === 'object') {
+            const result = {
+              sessions: buildSessionsFromData(parsed.sessions || []),
+              keyDrivers: parsed.keyDrivers || null,
+              standingsFilter: parsed.standingsFilter || null,
+              showPastRaces: parsed.showPastRaces !== undefined ? parsed.showPastRaces : null
+            };
+            return result;
+          }
+          return null;
+        } catch (error) {
+          return null;
+        }
+      }
+
+      function syncUrlHash(serialisable) {
+        try {
+          const shareable = {
+            keyDrivers: serialisable.keyDrivers,
+            standingsFilter: serialisable.standingsFilter,
+            showPastRaces: serialisable.showPastRaces,
+            sessions: serialisable.sessions.map((session) => ({
+              id: session.id,
+              positions: session.positions,
+              dnfs: session.dnfs,
+              enabled: session.enabled,
+            }))
+          };
+          const jsonString = JSON.stringify(shareable);
+          const encoded = encodeState(jsonString);
+          const newHash = encoded ? `#${encoded}` : "";
+          if (window.location.hash !== newHash) {
+            if (typeof history.replaceState === "function") {
+              history.replaceState(null, "", newHash);
+            } else {
+              window.location.hash = newHash;
+            }
+          }
+        } catch (error) {
+          /* ignore */
+        }
+      }
+
+      function renderSessions() {
+        sessionsContainer.innerHTML = "";
+        
+        // Filter sessions based on showPastRaces setting
+        const now = getCurrentTime(true); // Refresh cache for new render
+        
+        const visibleSessions = sessions.filter((session) => {
+          if (showPastRaces) return true; // Show all sessions
+          
+          // Only show future races (using exact datetime from API)
+          if (session.date) {
+            const sessionTime = session.time || '23:59:59Z';
+            const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+            return sessionDateTime >= now;
+          }
+          return true; // Show sessions without dates
+        });
+        
+        visibleSessions.forEach((session) => {
+          const card = buildSessionCard(session);
+          sessionsContainer.appendChild(card);
+        });
+        updateJsonEditor(true);
+      }
+
+      function buildSessionCard(session) {
+        const card = document.createElement("article");
+        
+        // Check if session is in the past (using exact datetime from API)
+        let isPastRace = false;
+        if (session.date) {
+          const sessionTime = session.time || '23:59:59Z';
+          const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+          isPastRace = sessionDateTime < getCurrentTime();
+        }
+        
+        card.className =
+          "rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm shadow-slate-200/50";
+        
+        // Add visual indicator for past races
+        if (isPastRace) {
+          card.style.opacity = "0.7";
+          card.style.backgroundColor = "#fafafa";
+        }
+
+        const header = document.createElement("div");
+        header.className = "flex flex-wrap items-center justify-between gap-3 text-sm mb-4";
+        const titleWrapper = document.createElement("div");
+        titleWrapper.className = "flex flex-col flex-1 min-w-0";
+        const title = document.createElement("h3");
+        title.className = "text-sm md:text-base font-semibold text-slate-900";
+        title.textContent = session.label;
+        
+        // Add "Past Race" badge if applicable
+        if (isPastRace) {
+          const pastBadge = document.createElement("span");
+          pastBadge.className = "ml-2 text-xs font-normal text-slate-500 bg-slate-200 px-2 py-0.5 rounded";
+          pastBadge.textContent = "Past Race";
+          title.appendChild(pastBadge);
+        }
+        
+        titleWrapper.appendChild(title);
+        if (session.description) {
+          const description = document.createElement("p");
+          description.className = "text-xs text-slate-500";
+          
+          // If circuit URL exists, make description clickable
+          if (session.circuitUrl) {
+            const link = document.createElement("a");
+            link.href = session.circuitUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = session.description;
+            link.className = "hover:text-slate-700 hover:underline transition";
+            description.appendChild(link);
+          } else {
+            description.textContent = session.description;
+          }
+          
+          titleWrapper.appendChild(description);
+        }
+        header.appendChild(titleWrapper);
+
+        const headerActions = document.createElement("div");
+        headerActions.className = "flex items-center gap-2 md:gap-3 flex-shrink-0";
+
+        // Toggle switch for enabling/disabling session
+        const toggleWrapper = document.createElement("label");
+        toggleWrapper.className = "flex items-center gap-2 cursor-pointer touch-manipulation";
+
+        const toggleInput = document.createElement("input");
+        toggleInput.type = "checkbox";
+        toggleInput.checked = session.enabled;
+        toggleInput.className = "sr-only";
+        // Allow toggle even for past races - users need to see standings impact
+        toggleInput.addEventListener("change", () => {
+          toggleSession(session.id);
+        });
+
+        const toggleSlider = document.createElement("div");
+        toggleSlider.className = `relative w-11 h-6 rounded-full transition ${session.enabled ? "bg-emerald-500" : "bg-slate-300"
+          }`;
+
+        const toggleKnob = document.createElement("div");
+        toggleKnob.className = `absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition transform ${session.enabled ? "translate-x-5" : "translate-x-0"
+          }`;
+
+        toggleSlider.appendChild(toggleKnob);
+        toggleWrapper.appendChild(toggleInput);
+        toggleWrapper.appendChild(toggleSlider);
+
+        const toggleLabel = document.createElement("span");
+        toggleLabel.className = "text-xs font-medium text-slate-600 hidden sm:inline";
+        toggleLabel.textContent = session.enabled ? "Enabled" : "Disabled";
+        toggleWrapper.appendChild(toggleLabel);
+
+        headerActions.appendChild(toggleWrapper);
+
+        const resetButton = document.createElement("button");
+        resetButton.type = "button";
+        resetButton.className =
+          "rounded-full border border-slate-300 px-3 py-1.5 md:py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600 transition hover:border-f1-red/40 hover:text-f1-red active:bg-red-50 touch-manipulation";
+        resetButton.textContent = "Reset";
+        resetButton.disabled = isPastRace; // Disable reset for past races
+        
+        if (isPastRace) {
+          resetButton.className = "rounded-full border border-slate-200 px-3 py-1.5 md:py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-400 cursor-not-allowed";
+          resetButton.title = "Cannot reset past races";
+        }
+        
+        resetButton.addEventListener("click", () => {
+          if (!isPastRace) {
+            resetSession(session.id);
+          }
+        });
+        headerActions.appendChild(resetButton);
+
+        header.appendChild(headerActions);
+        card.appendChild(header);
+
+        const badgeSection = document.createElement("div");
+        badgeSection.className = "space-y-3";
+
+        // Hide rankings and DNFs when disabled
+        if (!session.enabled) {
+          badgeSection.style.display = "none";
+        }
+
+        card.appendChild(badgeSection);
+
+        const orderContainer = document.createElement("div");
+        orderContainer.className = "relative flex flex-wrap gap-2 md:gap-3";
+        orderContainer.dataset.sessionId = session.id;
+        orderContainer.addEventListener("dragover", (event) =>
+          handleOrderContainerDragOver(event, session.id)
+        );
+        orderContainer.addEventListener("drop", (event) =>
+          handleOrderContainerDrop(event, session.id)
+        );
+        orderContainer.addEventListener("dragleave", (event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) {
+            clearInsertIndicator();
+          }
+        });
+
+        const pointsTable = scoring[session.type] || [];
+        session.positions.forEach((driverId, index) => {
+          const driver = driverLookup[driverId];
+          if (!driver) return;
+          const badge = createOrderBadge(session, driver, index, pointsTable[index] || 0, isPastRace);
+          orderContainer.appendChild(badge);
+        });
+        badgeSection.appendChild(orderContainer);
+
+        const dnfLabel = document.createElement("div");
+        dnfLabel.className = "text-xs font-semibold uppercase tracking-wide text-slate-500";
+        dnfLabel.textContent = "DNF";
+        badgeSection.appendChild(dnfLabel);
+
+        const dnfContainer = document.createElement("div");
+        dnfContainer.className =
+          "min-h-[48px] md:min-h-[52px] rounded-2xl border border-dashed border-rose-200 bg-rose-50 p-2 md:p-3 transition";
+        dnfContainer.dataset.sessionId = session.id;
+        dnfContainer.addEventListener("dragover", (event) =>
+          handleDnfDragOver(event, session.id)
+        );
+        dnfContainer.addEventListener("dragleave", (event) =>
+          event.currentTarget.classList.remove("border-rose-400", "bg-rose-100")
+        );
+        dnfContainer.addEventListener("drop", (event) =>
+          handleDnfDrop(event, session.id)
+        );
+
+        if (session.dnfs.length === 0) {
+          const hint = document.createElement("p");
+          hint.className = "text-xs text-slate-400";
+          hint.textContent = "Drag a badge here to retire a driver.";
+          dnfContainer.appendChild(hint);
+        } else {
+          const dnfBadges = document.createElement("div");
+          dnfBadges.className = "flex flex-wrap gap-2";
+          session.dnfs.forEach((driverId, index) => {
+            const driver = driverLookup[driverId];
+            if (!driver) return;
+            const badge = createDnfBadge(session, driver, index, isPastRace);
+            dnfBadges.appendChild(badge);
+          });
+          dnfContainer.appendChild(dnfBadges);
+        }
+
+        badgeSection.appendChild(dnfContainer);
+
+        return card;
+      }
+
+      function createOrderBadge(session, driver, index, points, isPastRace = false) {
+        const badge = document.createElement("div");
+        badge.className =
+          "group flex select-none items-center gap-1.5 md:gap-2 rounded-lg border px-2.5 py-2 md:px-3 text-sm font-semibold shadow-sm transition touch-manipulation";
+        
+        // Only make draggable if not a past race
+        if (!isPastRace) {
+          badge.className += " cursor-move hover:-translate-y-[1px] active:scale-95";
+          badge.draggable = true;
+        } else {
+          badge.className += " cursor-not-allowed opacity-60";
+          badge.draggable = false;
+          badge.title = "Past race - cannot modify";
+        }
+        
+        badge.title = badge.title || `${driver.name} · ${driver.team}`;
+        badge.dataset.sessionId = session.id;
+        badge.dataset.index = index.toString();
+        badge.dataset.driverId = driver.id;
+        badge.dataset.team = driver.team;
+
+        const palette = teamPalette[driver.team] || teamPalette.default;
+        badge.style.backgroundColor = "#ffffff";
+        badge.style.borderColor = "#e2e8f0";
+        badge.style.borderLeftWidth = "4px";
+        badge.style.borderLeftColor = palette.accent;
+        badge.style.color = "#1e293b";
+        badge.style.boxShadow = "0 1px 2px rgba(15, 23, 42, 0.08)";
+
+        // Apply opacity based on key drivers
+        const isKeyDriver = keyDrivers.includes(driver.id);
+        if (isKeyDriver) {
+          badge.classList.add("opacity-100");
+        } else {
+          badge.classList.add("opacity-30");
+        }
+
+        // Add hover effect with JS since inline styles override Tailwind classes
+        badge.addEventListener("mouseenter", () => {
+          badge.style.backgroundColor = "#f3f3f3";
+        });
+        badge.addEventListener("mouseleave", () => {
+          badge.style.backgroundColor = "#ffffff";
+        });
+
+        // Only add drag events if not a past race
+        if (!isPastRace) {
+          badge.addEventListener("dragstart", (event) =>
+            handleBadgeDragStart(event, session.id, "order", index)
+          );
+          badge.addEventListener("dragend", handleBadgeDragEnd);
+          badge.addEventListener("dragenter", (event) =>
+            handleOrderBadgeDragEnter(event, session.id)
+          );
+          badge.addEventListener("drop", (event) =>
+            handleOrderBadgeDrop(event, session.id, index)
+          );
+        }
+
+        const place = document.createElement("span");
+        place.className = "text-xs font-semibold min-w-[1rem]";
+        place.textContent = index + 1;
+        place.style.color = "#64748b";
+        badge.appendChild(place);
+
+        const name = document.createElement("span");
+        name.className = "text-xs md:text-sm font-semibold tracking-wide";
+        name.textContent = driver.code;
+        name.style.color = "#1e293b";
+        badge.appendChild(name);
+
+        const pts = document.createElement("span");
+        pts.className = "text-xs font-semibold";
+        pts.textContent = `+${points}`;
+        pts.style.color = points > 0 ? "#10b981" : "#94a3b8";
+        badge.appendChild(pts);
+
+        return badge;
+      }
+
+      function createDnfBadge(session, driver, index, isPastRace = false) {
+        const badge = document.createElement("div");
+        badge.className =
+          "group flex select-none items-center gap-1.5 md:gap-2 rounded-lg border px-2.5 py-2 md:px-3 text-sm font-semibold shadow-sm transition touch-manipulation";
+        
+        // Only make draggable if not a past race
+        if (!isPastRace) {
+          badge.className += " cursor-move hover:-translate-y-[1px] active:scale-95";
+          badge.draggable = true;
+        } else {
+          badge.className += " cursor-not-allowed opacity-60";
+          badge.draggable = false;
+          badge.title = "Past race - cannot modify";
+        }
+        
+        badge.title = badge.title || `${driver.name} · ${driver.team}`;
+        badge.dataset.sessionId = session.id;
+        badge.dataset.index = index.toString();
+        badge.dataset.driverId = driver.id;
+
+        const palette = teamPalette[driver.team] || teamPalette.default;
+        badge.style.backgroundColor = "#ffffff";
+        badge.style.borderColor = "#e2e8f0";
+        badge.style.borderLeftWidth = "4px";
+        badge.style.borderLeftColor = palette.accent;
+        badge.style.color = "#1e293b";
+        badge.style.boxShadow = "0 1px 2px rgba(15, 23, 42, 0.08)";
+
+        // Apply opacity based on key drivers
+        const isKeyDriver = keyDrivers.includes(driver.id);
+        if (isKeyDriver) {
+          badge.classList.add("opacity-100");
+        } else {
+          badge.classList.add("opacity-30");
+        }
+
+        // Add hover effect with JS since inline styles override Tailwind classes
+        badge.addEventListener("mouseenter", () => {
+          badge.style.backgroundColor = "#fafafa";
+        });
+        badge.addEventListener("mouseleave", () => {
+          badge.style.backgroundColor = "#ffffff";
+        });
+
+        // Only add drag events if not a past race
+        if (!isPastRace) {
+          badge.addEventListener("dragstart", (event) =>
+            handleBadgeDragStart(event, session.id, "dnf", index)
+          );
+          badge.addEventListener("dragend", handleBadgeDragEnd);
+        }
+
+        const label = document.createElement("span");
+        label.className = "text-xs font-semibold";
+        label.textContent = "DNF";
+        label.style.color = "#64748b";
+        badge.appendChild(label);
+
+        const name = document.createElement("span");
+        name.className = "text-xs md:text-sm font-semibold tracking-wide";
+        name.textContent = driver.code;
+        name.style.color = "#1e293b";
+        badge.appendChild(name);
+
+        return badge;
+      }
+
+      function handleBadgeDragStart(event, sessionId, source, index) {
+        const badge = event.currentTarget;
+        badge.classList.add("opacity-20");
+        clearInsertIndicator();
+        dragContext.sessionId = sessionId;
+        dragContext.source = source;
+        dragContext.driverId = badge.dataset.driverId || null;
+        dragContext.fromIndex = index;
+        dragContext.insertIndex = null;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", dragContext.driverId || "");
+      }
+
+      function handleBadgeDragEnd(event) {
+        event.currentTarget.classList.remove("opacity-20");
+        clearInsertIndicator();
+      }
+
+      function handleOrderBadgeDragEnter(event, sessionId) {
+        if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) return;
+        
+        event.preventDefault();
+        const container = event.currentTarget.parentElement;
+        const index = computeInsertPosition(container, event.clientX, event.clientY);
+        dragContext.insertIndex = index;
+        showInsertIndicator(container, index);
+      }
+
+      function handleOrderBadgeDrop(event, sessionId, targetIndex) {
+        if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) {
+          clearInsertIndicator();
+          return;
+        }
+        
+        event.preventDefault();
+        event.stopPropagation();
+        const index =
+          dragContext.insertIndex != null ? dragContext.insertIndex : targetIndex;
+        moveDriverToOrder(sessionId, index);
+        clearInsertIndicator();
+      }
+
+      function handleOrderContainerDragOver(event, sessionId) {
+        if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) return;
+        
+        event.preventDefault();
+        const container = event.currentTarget;
+        const index = computeInsertPosition(
+          container,
+          event.clientX,
+          event.clientY
+        );
+        dragContext.insertIndex = index;
+        showInsertIndicator(container, index);
+      }
+
+      function handleOrderContainerDrop(event, sessionId) {
+        if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) {
+          clearInsertIndicator();
+          return;
+        }
+        
+        event.preventDefault();
+        const defaultIndex =
+          sessions.find((s) => s.id === sessionId)?.positions.length ?? 0;
+        const index =
+          dragContext.insertIndex != null ? dragContext.insertIndex : defaultIndex;
+        moveDriverToOrder(sessionId, index);
+        clearInsertIndicator();
+      }
+
+      function handleDnfDragOver(event, sessionId) {
+        if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) return;
+        
+        event.preventDefault();
+        clearInsertIndicator();
+        event.currentTarget.classList.add("border-rose-400", "bg-rose-100");
+      }
+
+      function handleDnfDrop(event, sessionId) {
+        if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) {
+          event.currentTarget.classList.remove("border-rose-400", "bg-rose-100");
+          clearInsertIndicator();
+          return;
+        }
+        
+        event.preventDefault();
+        event.currentTarget.classList.remove("border-rose-400", "bg-rose-100");
+        sendDriverToDnf(sessionId);
+        clearInsertIndicator();
+      }
+
+      function buildRowData(badges) {
+        const ROW_TOLERANCE = 12;
+        const rows = [];
+
+        badges.forEach((badge, index) => {
+          const rect = badge.getBoundingClientRect();
+          const entry = { index, rect };
+          const lastRow = rows[rows.length - 1];
+
+          if (
+            !lastRow ||
+            rect.top - lastRow.top > ROW_TOLERANCE ||
+            rect.left < lastRow.items[lastRow.items.length - 1].rect.left - 4
+          ) {
+            rows.push({
+              startIndex: index,
+              items: [entry],
+              top: rect.top,
+              bottom: rect.bottom,
+            });
+          } else {
+            lastRow.items.push(entry);
+            lastRow.top = Math.min(lastRow.top, rect.top);
+            lastRow.bottom = Math.max(lastRow.bottom, rect.bottom);
+          }
+        });
+
+        return rows;
+      }
+
+      function computeInsertPosition(container, clientX, clientY) {
+        const badges = [...container.querySelectorAll("[data-driver-id]")];
+        if (badges.length === 0) {
+          return 0;
+        }
+
+        const rows = buildRowData(badges);
+        let targetRow = rows[0];
+        let bestDistance = Number.POSITIVE_INFINITY;
+
+        rows.forEach((row) => {
+          let distance = 0;
+          if (clientY < row.top) {
+            distance = row.top - clientY;
+          } else if (clientY > row.bottom) {
+            distance = clientY - row.bottom;
+          }
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            targetRow = row;
+          }
+        });
+
+        const items = targetRow.items;
+        const firstRect = items[0].rect;
+        const lastRect = items[items.length - 1].rect;
+        const beforeThreshold = ORDER_BOUNDARY_BIAS;
+        const afterThreshold = ORDER_BOUNDARY_BIAS;
+
+        if (clientX <= firstRect.left + firstRect.width * beforeThreshold) {
+          return targetRow.startIndex;
+        }
+        if (clientX >= lastRect.right - lastRect.width * (1 - afterThreshold)) {
+          return targetRow.startIndex + items.length;
+        }
+
+        for (let i = 1; i < items.length; i += 1) {
+          const current = items[i].rect;
+          const boundary = current.left + current.width * beforeThreshold;
+          if (clientX <= boundary) {
+            return targetRow.startIndex + i;
+          }
+        }
+
+        return targetRow.startIndex + Math.max(items.length - 1, 0);
+      }
+
+      function getInsertIndicator() {
+        if (!dragContext.indicator) {
+          const indicator = document.createElement("div");
+          indicator.style.position = "absolute";
+          indicator.style.width = "2px";
+          indicator.style.background = "#ff1801";
+          indicator.style.borderRadius = "9999px";
+          indicator.style.opacity = "0.85";
+          indicator.style.zIndex = "5";
+          indicator.style.pointerEvents = "none";
+          dragContext.indicator = indicator;
+        }
+        return dragContext.indicator;
+      }
+
+      function showInsertIndicator(container, index) {
+        const badges = [...container.querySelectorAll("[data-driver-id]")];
+        const position = getIndicatorPosition(badges, index);
+        if (!position) {
+          clearInsertIndicator();
+          return;
+        }
+
+        const indicator = getInsertIndicator();
+        if (indicator.parentElement !== container) {
+          container.appendChild(indicator);
+        }
+
+        indicator.style.top = `${position.top}px`;
+        indicator.style.height = `${Math.max(position.height, 24)}px`;
+        const containerWidth = container.getBoundingClientRect().width;
+        const clampedLeft = Math.max(0, Math.min(position.left - 1, containerWidth - 2));
+        indicator.style.left = `${clampedLeft}px`;
+
+        dragContext.insertIndex = index;
+        dragContext.indicatorIndex = index;
+      }
+
+      function clearInsertIndicator() {
+        if (dragContext.indicator?.parentElement) {
+          dragContext.indicator.parentElement.removeChild(dragContext.indicator);
+        }
+        dragContext.indicatorIndex = null;
+        dragContext.insertIndex = null;
+      }
+
+      function getIndicatorPosition(badges, index) {
+        if (badges.length === 0) return null;
+        const rows = buildRowData(badges);
+        if (rows.length === 0) return null;
+
+        let row = rows.find(
+          (candidate) =>
+            index >= candidate.startIndex &&
+            index < candidate.startIndex + candidate.items.length
+        ) || null;
+
+        if (!row) {
+          row = rows.find(
+            (candidate) => index === candidate.startIndex + candidate.items.length
+          );
+        }
+
+        if (!row) {
+          row = index < rows[0].startIndex ? rows[0] : rows[rows.length - 1];
+        }
+
+        const container = badges[0].parentElement;
+        const containerRect = container.getBoundingClientRect();
+        const rowItems = row.items;
+        let x;
+
+        if (index <= row.startIndex) {
+          x = rowItems[0].rect.left;
+        } else if (index >= row.startIndex + rowItems.length) {
+          x = rowItems[rowItems.length - 1].rect.right;
+        } else {
+          const prev = rowItems[index - row.startIndex - 1].rect;
+          const current = rowItems[index - row.startIndex].rect;
+          const gap = current.left - prev.right;
+          if (gap > 6) {
+            x = prev.right + gap / 2;
+          } else {
+            x = current.left;
+          }
+        }
+
+        const relativeLeft = Math.max(0, Math.min(x - containerRect.left, containerRect.width));
+        return {
+          left: relativeLeft,
+          top: row.top - containerRect.top,
+          height: row.bottom - row.top,
+        };
+      }
+
+      function isValidDragTarget(sessionId) {
+        return dragContext.sessionId === sessionId && dragContext.driverId;
+      }
+
+      function moveDriverToOrder(sessionId, targetIndex = 0) {
+        const session = sessions.find((entry) => entry.id === sessionId);
+        if (!session || !dragContext.driverId) {
+          resetDragContext();
+          return;
+        }
+
+        if (targetIndex == null) {
+          targetIndex = session.positions.length;
+        }
+
+        const driverId = dragContext.driverId;
+        const fromIndex = dragContext.fromIndex;
+        if (dragContext.source === "order" && fromIndex === targetIndex) {
+          resetDragContext();
+          return;
+        }
+
+        if (dragContext.source === "order" && fromIndex != null) {
+          session.positions.splice(fromIndex, 1);
+          if (fromIndex < targetIndex) {
+            targetIndex -= 1;
+          }
+        }
+
+        if (dragContext.source === "dnf") {
+          session.dnfs = session.dnfs.filter((id) => id !== driverId);
+        }
+
+        targetIndex = Math.max(0, Math.min(targetIndex, session.positions.length));
+        session.positions.splice(targetIndex, 0, driverId);
+
+        finaliseDrag();
+      }
+
+      function sendDriverToDnf(sessionId) {
+        const session = sessions.find((entry) => entry.id === sessionId);
+        if (!session || !dragContext.driverId) {
+          resetDragContext();
+          return;
+        }
+        const driverId = dragContext.driverId;
+        if (dragContext.source === "order" && dragContext.fromIndex != null) {
+          session.positions.splice(dragContext.fromIndex, 1);
+        } else if (dragContext.source === "dnf") {
+          resetDragContext();
+          return;
+        }
+        if (!session.dnfs.includes(driverId)) {
+          session.dnfs.push(driverId);
+        }
+        finaliseDrag();
+      }
+
+      function finaliseDrag() {
+        resetDragContext();
+        renderSessions();
+        recalcAndRenderStandings();
+      }
+
+      function resetDragContext() {
+        clearInsertIndicator();
+        dragContext.sessionId = null;
+        dragContext.source = null;
+        dragContext.driverId = null;
+        dragContext.fromIndex = null;
+        dragContext.insertIndex = null;
+        dragContext.indicatorIndex = null;
+      }
+
+      function toggleSession(sessionId) {
+        const session = sessions.find((entry) => entry.id === sessionId);
+        if (!session) return;
+        session.enabled = !session.enabled;
+        renderSessions();
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+        const status = session.enabled ? "enabled" : "disabled";
+        setJsonFeedback(`Session ${session.label} ${status}.`, "info");
+      }
+
+      function resetSession(sessionId) {
+        const template = sessionsTemplate.find((entry) => entry.id === sessionId);
+        const session = sessions.find((entry) => entry.id === sessionId);
+        if (!template || !session) return;
+        session.positions = [...template.positions];
+        session.dnfs = [...template.dnfs];
+        renderSessions();
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+        setJsonFeedback(`Reset ${template.label} to baseline order.`, "info");
+      }
+
+      function recalcAndRenderStandings() {
+        const totals = driverData.map((driver) => ({
+          ...driver,
+          total: driver.basePoints,
+          gain: 0,
+        }));
+
+        const totalsLookup = {};
+        totals.forEach((entry) => {
+          totalsLookup[entry.id] = entry;
+        });
+
+        sessions.forEach((session) => {
+          // Skip disabled sessions
+          if (!session.enabled) return;
+
+          // Only add points from FUTURE races
+          // Past race points are already included in basePoints from API
+          let isFutureRace = true;
+          if (session.date) {
+            const sessionTime = session.time || '23:59:59Z';
+            const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+            isFutureRace = sessionDateTime >= getCurrentTime();
+          }
+          
+          if (!isFutureRace) return; // Skip past races - their points are already in basePoints
+
+          const pointsTable = scoring[session.type] || [];
+          session.positions.forEach((driverId, index) => {
+            if (!driverId) return;
+            const award = pointsTable[index] ?? 0;
+            if (!award) return;
+            const target = totalsLookup[driverId];
+            if (!target) return;
+            target.total += award;
+            target.gain += award;
+          });
+        });
+
+        totals.sort((a, b) => {
+          if (b.total === a.total) {
+            return a.baseRank - b.baseRank;
+          }
+          return b.total - a.total;
+        });
+
+        standingsBody.innerHTML = "";
+
+        const leaderPoints = totals[0]?.total || 0;
+
+        totals.forEach((driver, index) => {
+          const card = document.createElement("div");
+
+          // Calculate scaling for top 3 (1st is largest, 3rd is slightly bigger than 4th)
+          let paddingClass = "px-3 py-3 md:px-4 md:py-4";
+          let gapClass = "gap-2 md:gap-4";
+          let barHeight = "32px";
+          let fontSizeClass = "text-sm md:text-base";
+          let rankFontSize = "text-base md:text-lg";
+          let opacity = 1;
+
+          if (index === 0) {
+            paddingClass = "px-4 py-4 md:px !pr-3 md:py-5";
+            fontSizeClass = "text-lg md:text-2xl"
+          } else if (index === 1) {
+            paddingClass = "px-4 py-4 md:px !pr-3 md:py-5";
+            fontSizeClass = "text-base md:text-xl"
+          } else if (index === 2) {
+            paddingClass = "px-3.5 py-3.5 !pr-3 md:px-5 md:py-5";
+            fontSizeClass = "text-sm md:text-lg"
+          } else {
+            // Gradual fade starting from position 4
+            // Position 4 starts at 0.6 and gradually decreases
+            const positionBeyondTopThree = index - 3;
+            opacity = Math.max(0.15, 0.6 - (positionBeyondTopThree * 0.03));
+            paddingClass = "px-2.5 py-2 md:px-3 md:py-2";
+            gapClass = "gap-2 md:gap-3";
+            barHeight = "24px";
+            fontSizeClass = "text-xs md:text-sm";
+            rankFontSize = "text-sm md:text-base";
+          }
+
+          card.className = [
+            "bg-gradient-to-r from-white to-transparent rounded-xl border transition-all hover:!bg-white hover:!border-gray-300 hover:!shadow-2xl hover:!opacity-100",
+            paddingClass,
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          // Apply inline opacity for gradual fade
+          if (index >= 3) {
+            card.style.opacity = opacity;
+          }
+
+          if (driver.id === "VER") {
+            card.classList.add("ring-2", "ring-f1-red/30");
+          }
+
+          const palette = teamPalette[driver.team] || teamPalette.default;
+
+          // Medal emojis for top 3
+          const medals = ["🥇", "🥈", "🥉"];
+          const medalEmoji = index < 3 ? medals[index] : '';
+          const rankDisplay = medalEmoji ? `<span class="mr-1">${medalEmoji}</span>${index + 1}` : index + 1;
+
+          // Calculate point difference for 2nd and 3rd place
+          const pointDiff = driver.total - leaderPoints
+          const diffDisplay = pointDiff
+            ? `<div class="text-xs md:text-sm font-semibold text-f1-red">${pointDiff}</div>`
+            : '<div class="text-xs md:text-sm opacity-0 w-[1.5rem]"></div>'; // invisible spacer for alignment
+
+          card.innerHTML = `
+            <div class="flex items-center ${gapClass}">
+              <div class="${rankFontSize} font-bold text-slate-600 w-8 md:w-10 text-center flex-shrink-0">${rankDisplay}</div>
+              <div style="width: 4px; height: ${barHeight}; background-color: ${palette.accent}; border-radius: 3px;" class="flex-shrink-0"></div>
+              <div class="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${gapClass} min-w-0">
+                <div class="flex items-center gap-2 md:gap-3 min-w-0">
+                  <span class="${fontSizeClass} font-bold text-slate-900 flex-shrink-0">${driver.id}</span>
+                  <span class="text-xs md:text-sm text-slate-500 truncate">${driver.team}</span>
+                </div>
+                <div class="flex items-center gap-3 md:gap-6 flex-shrink-0">
+                  <div class="text-xs md:text-sm text-slate-500">
+                    <span class="text-xs text-slate-400 mr-1 hidden sm:inline">Base</span>${driver.basePoints}
+                  </div>
+                  <div class="text-xs md:text-sm ${driver.gain > 0 ? "text-emerald-600 font-semibold" : "text-slate-400"}">
+                    ${formatDelta(driver.gain)}
+                  </div>
+                  <div class="${fontSizeClass} font-bold text-slate-900 min-w-[2.5rem] md:min-w-[3rem] text-right">${driver.total}</div>
+                  ${diffDisplay}
+                </div>
+              </div>
+            </div>
+          `;
+
+          // Apply standings filter - hide non-key drivers when filter is "key"
+          if (standingsFilter === "key" && !keyDrivers.includes(driver.id)) {
+            card.style.display = "none";
+          }
+
+          standingsBody.appendChild(card);
+        });
+
+        // Update mobile footer with top 3
+        updateMobileTop3(totals.slice(0, 3));
+      }
+
+      function updateMobileTop3(top3Drivers) {
+        const container = document.getElementById("top3-container");
+        if (!container) return;
+
+        container.innerHTML = "";
+
+        const leaderPoints = top3Drivers[0]?.total || 0;
+
+        top3Drivers.forEach((driver, index) => {
+          const palette = teamPalette[driver.team] || teamPalette.default;
+
+          const card = document.createElement("div");
+          card.className = "flex-1 flex items-center gap-2 min-w-0";
+
+          // Medal emojis for visual appeal
+          const medals = ["🥇", "🥈", "🥉"];
+
+          // Calculate point difference for 2nd and 3rd place
+          const pointDiff = index > 0 ? driver.total - leaderPoints : null;
+          const diffText = pointDiff !== null ? `<span class="text-xs font-semibold text-f1-red">${pointDiff}</span>` : '';
+
+          card.innerHTML = `
+            <div class="text-lg flex-shrink-0">${medals[index]}</div>
+            <div style="width: 3px; height: 32px; background-color: ${palette.accent}; border-radius: 2px;" class="flex-shrink-0"></div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-bold text-slate-900 truncate">${driver.id}</div>
+              <div class="text-xs text-slate-500">${driver.total} pts ${diffText}</div>
+            </div>
+          `;
+
+          if (driver.id === "VER") {
+            card.classList.add("ring-2", "ring-f1-red/30", "rounded-lg", "px-2", "py-1");
+          }
+
+          container.appendChild(card);
+        });
+      }
+
+      function formatDelta(value) {
+        if (value === 0) return "0";
+        return value > 0 ? `+${value}` : `${value}`;
+      }
+
+      function updateJsonEditor(silent = false) {
+        const serialisable = {
+          keyDrivers: keyDrivers,
+          standingsFilter: standingsFilter,
+          showPastRaces: showPastRaces,
+          sessions: sessions.map((session) => ({
+            id: session.id,
+            label: session.label,
+            event: session.event,
+            type: session.type,
+            positions: session.positions,
+            dnfs: session.dnfs,
+            enabled: session.enabled,
+          }))
+        };
+        jsonTextarea.value = JSON.stringify(serialisable, null, 2);
+        syncUrlHash(serialisable);
+        if (!silent) {
+          setJsonFeedback("JSON auto-updates with every drag.", "info");
+        }
+      }
+
+      function loadSessionsFromJson() {
+        try {
+          const parsed = JSON.parse(jsonTextarea.value);
+
+          // Handle both old format (array) and new format (object with keyDrivers)
+          if (Array.isArray(parsed)) {
+            sessions = buildSessionsFromData(parsed);
+          } else if (parsed && typeof parsed === 'object') {
+            if (parsed.keyDrivers && Array.isArray(parsed.keyDrivers)) {
+              keyDrivers = parsed.keyDrivers;
+            }
+            if (parsed.standingsFilter) {
+              standingsFilter = parsed.standingsFilter;
+              // Update checkmarks
+              if (standingsFilter === "all") {
+                showAllCheck.classList.remove("hidden");
+                showKeyCheck.classList.add("hidden");
+              } else {
+                showAllCheck.classList.add("hidden");
+                showKeyCheck.classList.remove("hidden");
+              }
+            }
+            if (parsed.showPastRaces !== undefined) {
+              showPastRaces = parsed.showPastRaces;
+              // Update checkmark
+              if (showPastRaces) {
+                showPastCheck.classList.remove("hidden");
+              } else {
+                showPastCheck.classList.add("hidden");
+              }
+            }
+            if (parsed.sessions && Array.isArray(parsed.sessions)) {
+              sessions = buildSessionsFromData(parsed.sessions);
+            }
+          } else {
+            throw new Error("Invalid JSON format.");
+          }
+
+          renderSessions();
+          recalcAndRenderStandings();
+          updateJsonEditor(true);
+          setJsonFeedback("Sessions updated from JSON.", "success");
+        } catch (error) {
+          setJsonFeedback(`Could not parse JSON: ${error.message}`, "error");
+        }
+      }
+
+      function copyJsonToClipboard() {
+        if (!navigator.clipboard) {
+          setJsonFeedback("Clipboard API not available in this browser.", "error");
+          return;
+        }
+        navigator.clipboard
+          .writeText(jsonTextarea.value)
+          .then(() => {
+            setJsonFeedback("JSON copied to clipboard.", "success");
+          })
+          .catch(() => {
+            setJsonFeedback(
+              "Unable to access clipboard. Copy manually instead.",
+              "error"
+            );
+          });
+      }
+
+      function setJsonFeedback(message, tone = "info") {
+        const toneClass =
+          tone === "error"
+            ? "text-f1-red"
+            : tone === "success"
+              ? "text-emerald-600"
+              : "text-slate-500";
+        jsonFeedback.textContent = message;
+        jsonFeedback.className = `mt-2 text-xs ${toneClass}`;
+      }
+
+      // Touch support for mobile drag and drop
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchElement = null;
+      let touchClone = null;
+      let touchScrolling = false;
+      let touchDragging = false;
+
+      document.addEventListener('touchstart', function (e) {
+        const target = e.target.closest('[draggable="true"]');
+        if (!target) return;
+
+        touchElement = target;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchScrolling = false;
+        touchDragging = false;
+
+        // Start a timer to determine if user is scrolling or dragging
+        setTimeout(() => {
+          if (touchElement && !touchScrolling) {
+            touchDragging = true;
+            touchElement.style.opacity = '0.5';
+
+            // Trigger dragstart event
+            const sessionId = touchElement.dataset.sessionId;
+            const source = touchElement.parentElement.classList.contains('flex') &&
+              touchElement.parentElement.parentElement.classList.contains('rounded-2xl') ? 'dnf' : 'order';
+            const index = parseInt(touchElement.dataset.index || '0');
+            handleBadgeDragStart({
+              currentTarget: touchElement,
+              dataTransfer: {
+                effectAllowed: 'move',
+                setData: () => { }
+              }
+            }, sessionId, source, index);
+          }
+        }, 150);
+      }, { passive: false });
+
+      document.addEventListener('touchmove', function (e) {
+        if (!touchElement) return;
+
+        // If drag has been initiated, always prevent scrolling
+        if (touchDragging) {
+          e.preventDefault();
+
+          const touch = e.touches[0];
+          const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+
+          if (elementBelow) {
+            // Check if over order container
+            const orderContainer = elementBelow.closest('[data-session-id].relative');
+            if (orderContainer && dragContext.driverId) {
+              const sessionId = orderContainer.dataset.sessionId;
+              handleOrderContainerDragOver({
+                preventDefault: () => { },
+                currentTarget: orderContainer,
+                clientX: touch.clientX,
+                clientY: touch.clientY
+              }, sessionId);
+            }
+
+            // Check if over DNF container
+            const dnfContainer = elementBelow.closest('[data-session-id].rounded-2xl');
+            if (dnfContainer && dragContext.driverId) {
+              const sessionId = dnfContainer.dataset.sessionId;
+              handleDnfDragOver({
+                preventDefault: () => { },
+                currentTarget: dnfContainer
+              }, sessionId);
+            }
+          }
+          return;
+        }
+
+        // Before drag is initiated, check if user is trying to scroll
+        const deltaX = Math.abs(e.touches[0].clientX - touchStartX);
+        const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+
+        // Detect if user is scrolling vertically (before drag timer completes)
+        if (deltaY > deltaX && deltaY > 10) {
+          touchScrolling = true;
+          if (touchElement) {
+            touchElement.style.opacity = '';
+            clearInsertIndicator();
+            resetDragContext();
+            touchElement = null;
+          }
+          return;
+        }
+
+        if (touchScrolling || !touchElement) return;
+      }, { passive: false });
+
+      document.addEventListener('touchend', function (e) {
+        if (!touchElement || touchScrolling) {
+          touchElement = null;
+          touchScrolling = false;
+          touchDragging = false;
+          return;
+        }
+
+        e.preventDefault();
+        touchElement.style.opacity = '';
+
+        const touch = e.changedTouches[0];
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (elementBelow && dragContext.driverId) {
+          // Check if dropped on order container
+          const orderContainer = elementBelow.closest('[data-session-id].relative');
+          if (orderContainer) {
+            const sessionId = orderContainer.dataset.sessionId;
+            handleOrderContainerDrop({
+              preventDefault: () => { }
+            }, sessionId);
+          }
+
+          // Check if dropped on DNF container
+          const dnfContainer = elementBelow.closest('[data-session-id].rounded-2xl');
+          if (dnfContainer) {
+            const sessionId = dnfContainer.dataset.sessionId;
+            dnfContainer.classList.remove("border-rose-400", "bg-rose-100");
+            handleDnfDrop({
+              preventDefault: () => { },
+              currentTarget: dnfContainer
+            }, sessionId);
+          }
+        }
+
+        handleBadgeDragEnd({ currentTarget: touchElement });
+        touchElement = null;
+        touchScrolling = false;
+        touchDragging = false;
+      }, { passive: false });
+
+      document.addEventListener('touchcancel', function (e) {
+        if (touchElement) {
+          touchElement.style.opacity = '';
+          handleBadgeDragEnd({ currentTarget: touchElement });
+        }
+        clearInsertIndicator();
+        resetDragContext();
+        touchElement = null;
+        touchScrolling = false;
+        touchDragging = false;
+      });
+    });
+  </script>
+</body>
+
+</html>
