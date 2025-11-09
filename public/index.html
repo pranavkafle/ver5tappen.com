@@ -414,7 +414,7 @@
             };
           });
           
-          // Initialize driverLookup
+          // Initialize driverLookup and set default key drivers to top 3
           driverData.forEach((driver, index) => {
             const parts = driver.name.split(" ");
             let shortName = parts[parts.length - 1] || driver.name;
@@ -426,6 +426,11 @@
             driver.baseRank = index + 1;
             driverLookup[driver.id] = driver;
           });
+          
+          // Set default key drivers to top 3 from standings (if not loading from hash)
+          if (!loadedFromHash && keyDrivers.length === 0) {
+            keyDrivers = driverData.slice(0, 3).map(d => d.id);
+          }
           
           // Process races and create session configs
           sessionConfigs = [];
@@ -595,7 +600,7 @@
       restoreDefaultsButton.addEventListener("click", () => {
         dropdownMenu.classList.add("hidden");
         sessions = cloneSessions(sessionsTemplate);
-        keyDrivers = ["VER", "PIA", "NOR"]; // Reset to default key drivers
+        keyDrivers = driverData.slice(0, 3).map(d => d.id); // Reset to top 3 from standings
         renderSessions();
         recalcAndRenderStandings();
         updateJsonEditor(true);
