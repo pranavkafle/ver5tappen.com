@@ -9,7 +9,7 @@
 
 **Interactive Formula 1 championship standings calculator with real-time API data**
 
-[🐛 Report Bug](../../issues) | [✨ Request Feature](../../issues) | [🍴 Fork This Repo](../../fork)
+[🚀 Live Demo](https://pranavkafle.github.io/ver5tappen.com/) | [📖 Documentation](docs/API.md) | [🐛 Report Bug](../../issues) | [✨ Request Feature](../../issues)
 
 </div>
 
@@ -32,7 +32,9 @@ Ver5tappen.com is a lightweight, single-page F1 fantasy standings calculator tha
 
 ---
 
-## 🎮 Demo
+## 🎮 Live Demo
+
+👉 **[Try it now!](https://pranavkafle.github.io/ver5tappen.com/)**
 
 ### How to Use
 
@@ -47,27 +49,22 @@ Ver5tappen.com is a lightweight, single-page F1 fantasy standings calculator tha
 
 ## 🚀 Getting Started
 
-### Quick Start
+### Option 1: Use the Live Site
+Simply visit [pranavkafle.github.io/ver5tappen.com](https://pranavkafle.github.io/ver5tappen.com/)
 
-**Option 1: Fork & Deploy**
-1. Fork this repository
-2. Enable GitHub Pages in Settings → Pages → Source: `main` branch, `/ (root)`
-3. Your site will be live at `https://[your-username].github.io/ver5tappen.com/`
-4. GitHub Actions will automatically update F1 data
-
-**Option 2: Run Locally**
+### Option 2: Run Locally
 
 ```bash
-# Clone your fork
-git clone https://github.com/[your-username]/ver5tappen.com.git
+# Clone the repository
+git clone https://github.com/pranavkafle/ver5tappen.com.git
 cd ver5tappen.com
 
 # Open in browser (no build required!)
-open index.html
+open public/index.html
 
 # OR serve with a simple HTTP server
 python3 -m http.server 8000
-# Then visit http://localhost:8000/
+# Then visit http://localhost:8000/public/
 ```
 
 No dependencies, no npm install, no webpack - just open and run! 🎉
@@ -158,11 +155,9 @@ ver5tappen.com/
 ├── docs/
 │   └── API.md                     # API documentation
 ├── public/
-│   └── index.html                 # Application (legacy location)
-├── index.html                     # Main application (root)
+│   └── index.html                 # Main application
 ├── README.md
-├── LICENSE
-└── wrangler.jsonc                 # Cloudflare config (optional)
+└── wrangler.jsonc                 # Cloudflare config
 ```
 
 ---
@@ -189,16 +184,9 @@ curl "https://api.jolpi.ca/ergast/f1/2025/sprint.json?limit=100" > data/sprint-r
 
 ### Customizing the App
 
-- **Team Colors**: Edit the `teamPalette` object in `index.html`
+- **Team Colors**: Edit the `teamPalette` object in `public/index.html`
 - **Point System**: Modify `SESSION_POINTS` array for different scoring
-- **Default Drivers**: Auto-selected from top 3 in standings
-
-### GitHub Actions Setup
-
-After forking, GitHub Actions should work automatically. If not:
-1. Go to your repo → Settings → Actions → General
-2. Enable "Read and write permissions" for workflows
-3. Manually trigger the workflow to test
+- **Key Drivers**: Defaults to top 3 from standings, but users can customize
 
 ---
 
@@ -215,7 +203,7 @@ Contributions are welcome! Here's how you can help:
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request to the original repository
+5. Open a Pull Request
 
 #### PR Guidelines
 - ✅ Clear description of changes and motivation
@@ -256,7 +244,6 @@ GET https://api.jolpi.ca/ergast/f1/2025/sprint.json?limit=100
 - [ ] Dark mode toggle
 - [ ] More advanced tiebreaker scenarios
 - [ ] Export to PDF/image
-- [ ] Custom point systems
 
 ---
 
@@ -271,24 +258,24 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[jolpica-f1 API](https://github.com/jolpica/jolpica-f1)** - For providing free, open-source F1 data
 - **[Ergast API](http://ergast.com/mrd/)** - The original F1 data source
 - **[Tailwind CSS](https://tailwindcss.com/)** - For the beautiful utility-first CSS
-- **[lazharichir](https://github.com/lazharichir/ver5stappen.com)** - Original ver5stappen.com concept
+- **[lazharichir](https://github.com/lazharichir)** - Original ver5stappen.com concept
 
 ---
 
-## 🌟 Show Your Support
+## 📞 Contact
 
-If you found this project useful:
-- ⭐ Star this repository
-- 🍴 Fork it and make it your own
-- 🐦 Share it on social media
-- 🤝 Contribute improvements
+Pranav Kafle - [@pranavkafle](https://github.com/pranavkafle)
+
+Project Link: [https://github.com/pranavkafle/ver5tappen.com](https://github.com/pranavkafle/ver5tappen.com)
 
 ---
 
 <div align="center">
 
-**Made with ❤️ for F1 fans worldwide**
+**Made with ❤️ for F1 fans**
 
-[Report Bug](../../issues) · [Request Feature](../../issues) · [Fork This Repo](../../fork)
+⭐ Star this repo if you find it useful!
+
+[Report Bug](../../issues) · [Request Feature](../../issues) · [View Demo](https://pranavkafle.github.io/ver5tappen.com/)
 
 </div>
