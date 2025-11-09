@@ -293,6 +293,20 @@
 
       const defaultOrder = driverData.map((driver) => driver.id);
 
+      // Utility: Get today's date at midnight (cached for performance)
+      const getTodayMidnight = (() => {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD in UTC
+        return () => today;
+      })();
+
+      // Utility: Check if a session is in the past
+      function isPastRaceSession(sessionId) {
+        const session = sessions.find((s) => s.id === sessionId);
+        if (!session?.date) return false;
+        // Compare dates as strings in YYYY-MM-DD format (same as API)
+        return session.date < getTodayMidnight();
+      }
+
       let sessionConfigs = [];
       let sessionsTemplate = [];
       let sessions = [];
@@ -879,16 +893,12 @@
         sessionsContainer.innerHTML = "";
         
         // Filter sessions based on showPastRaces setting
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset to start of day
-        
         const visibleSessions = sessions.filter((session) => {
           if (showPastRaces) return true; // Show all sessions
           
-          // Only show future races
+          // Only show future races (using same date format as API)
           if (session.date) {
-            const sessionDate = new Date(session.date);
-            return sessionDate >= today;
+            return session.date >= getTodayMidnight();
           }
           return true; // Show sessions without dates
         });
@@ -903,10 +913,8 @@
       function buildSessionCard(session) {
         const card = document.createElement("article");
         
-        // Check if session is in the past
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const isPastRace = session.date ? new Date(session.date) < today : false;
+        // Check if session is in the past (using same date format as API)
+        const isPastRace = session.date ? session.date < getTodayMidnight() : false;
         
         card.className =
           "rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm shadow-slate-200/50";
@@ -1254,18 +1262,7 @@
 
       function handleOrderBadgeDragEnter(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
-        
-        // Check if this is a past race - don't allow drops on past races
-        const session = sessions.find((s) => s.id === sessionId);
-        if (session && session.date) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const sessionDate = new Date(session.date);
-          // Only block if date is valid and in the past
-          if (!isNaN(sessionDate.getTime()) && sessionDate < today) {
-            return; // Past race - don't allow drop
-          }
-        }
+        if (isPastRaceSession(sessionId)) return;
         
         event.preventDefault();
         const container = event.currentTarget.parentElement;
@@ -1276,18 +1273,9 @@
 
       function handleOrderBadgeDrop(event, sessionId, targetIndex) {
         if (!isValidDragTarget(sessionId)) return;
-        
-        // Check if this is a past race - don't allow drops on past races
-        const session = sessions.find((s) => s.id === sessionId);
-        if (session && session.date) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const sessionDate = new Date(session.date);
-          // Only block if date is valid and in the past
-          if (!isNaN(sessionDate.getTime()) && sessionDate < today) {
-            clearInsertIndicator();
-            return; // Past race - don't allow drop
-          }
+        if (isPastRaceSession(sessionId)) {
+          clearInsertIndicator();
+          return;
         }
         
         event.preventDefault();
@@ -1300,18 +1288,7 @@
 
       function handleOrderContainerDragOver(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
-        
-        // Check if this is a past race - don't allow drops on past races
-        const session = sessions.find((s) => s.id === sessionId);
-        if (session && session.date) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const sessionDate = new Date(session.date);
-          // Only block if date is valid and in the past
-          if (!isNaN(sessionDate.getTime()) && sessionDate < today) {
-            return; // Past race - don't allow drop
-          }
-        }
+        if (isPastRaceSession(sessionId)) return;
         
         event.preventDefault();
         const container = event.currentTarget;
@@ -1326,18 +1303,9 @@
 
       function handleOrderContainerDrop(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
-        
-        // Check if this is a past race - don't allow drops on past races
-        const session = sessions.find((s) => s.id === sessionId);
-        if (session && session.date) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const sessionDate = new Date(session.date);
-          // Only block if date is valid and in the past
-          if (!isNaN(sessionDate.getTime()) && sessionDate < today) {
-            clearInsertIndicator();
-            return; // Past race - don't allow drop
-          }
+        if (isPastRaceSession(sessionId)) {
+          clearInsertIndicator();
+          return;
         }
         
         event.preventDefault();
@@ -1351,18 +1319,7 @@
 
       function handleDnfDragOver(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
-        
-        // Check if this is a past race - don't allow drops on past races
-        const session = sessions.find((s) => s.id === sessionId);
-        if (session && session.date) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const sessionDate = new Date(session.date);
-          // Only block if date is valid and in the past
-          if (!isNaN(sessionDate.getTime()) && sessionDate < today) {
-            return; // Past race - don't allow drop
-          }
-        }
+        if (isPastRaceSession(sessionId)) return;
         
         event.preventDefault();
         clearInsertIndicator();
@@ -1371,18 +1328,10 @@
 
       function handleDnfDrop(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
-        
-        // Check if this is a past race - don't allow drops on past races
-        const session = sessions.find((s) => s.id === sessionId);
-        if (session && session.date) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const sessionDate = new Date(session.date);
-          if (sessionDate < today) {
-            event.currentTarget.classList.remove("border-rose-400", "bg-rose-100");
-            clearInsertIndicator();
-            return; // Past race - don't allow drop
-          }
+        if (isPastRaceSession(sessionId)) {
+          event.currentTarget.classList.remove("border-rose-400", "bg-rose-100");
+          clearInsertIndicator();
+          return;
         }
         
         event.preventDefault();
@@ -1672,18 +1621,13 @@
           totalsLookup[entry.id] = entry;
         });
 
-        // Determine today's date for filtering
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
         sessions.forEach((session) => {
           // Skip disabled sessions
           if (!session.enabled) return;
 
           // Only add points from FUTURE races (today and onwards)
           // Past race points are already included in basePoints from API
-          const sessionDate = session.date ? new Date(session.date) : null;
-          const isFutureRace = sessionDate ? sessionDate >= today : true;
+          const isFutureRace = session.date ? session.date >= getTodayMidnight() : true;
           
           if (!isFutureRace) return; // Skip past races - their points are already in basePoints
 
