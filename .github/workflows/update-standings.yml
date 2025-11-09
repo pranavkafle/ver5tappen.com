@@ -35,36 +35,38 @@ jobs:
           
           # Parse races-2025.json to check if a race is happening
           RACE_HAPPENING=$(node -e "
-            const fs = require('fs');
-            const data = JSON.parse(fs.readFileSync('data/races-2025.json', 'utf8'));
-            const races = data.MRData.RaceTable.Races;
-            const now = new Date('$CURRENT_TIME');
-            const dayOfWeek = $DAY_OF_WEEK;
-            
-            // On Mon-Thu (1-4), always return true for daily update
-            if (dayOfWeek >= 1 && dayOfWeek <= 4) {
-              console.log('true');
-              return;
-            }
-            
-            // On Fri-Sun (5-7), check if any race or sprint is within 1 hour before OR 5 hours after
-            const activeRace = races.find(race => {
-              const checkTimes = [
-                race.date + 'T' + (race.time || '00:00:00Z'),
-                race.Sprint ? race.Sprint.date + 'T' + (race.Sprint.time || '00:00:00Z') : null
-              ].filter(Boolean);
+            (function() {
+              const fs = require('fs');
+              const data = JSON.parse(fs.readFileSync('data/races-2025.json', 'utf8'));
+              const races = data.MRData.RaceTable.Races;
+              const now = new Date('$CURRENT_TIME');
+              const dayOfWeek = $DAY_OF_WEEK;
               
-              return checkTimes.some(timeStr => {
-                const raceTime = new Date(timeStr);
-                const diffMs = now - raceTime;
-                const diffHours = diffMs / (1000 * 60 * 60);
+              // On Mon-Thu (1-4), always return true for daily update
+              if (dayOfWeek >= 1 && dayOfWeek <= 4) {
+                console.log('true');
+                process.exit(0);
+              }
+              
+              // On Fri-Sun (5-7), check if any race or sprint is within 1 hour before OR 5 hours after
+              const activeRace = races.find(race => {
+                const checkTimes = [
+                  race.date + 'T' + (race.time || '00:00:00Z'),
+                  race.Sprint ? race.Sprint.date + 'T' + (race.Sprint.time || '00:00:00Z') : null
+                ].filter(Boolean);
                 
-                // Active if: 1 hour before (-1) to 5 hours after (5)
-                return diffHours >= -1 && diffHours <= 5;
+                return checkTimes.some(timeStr => {
+                  const raceTime = new Date(timeStr);
+                  const diffMs = now - raceTime;
+                  const diffHours = diffMs / (1000 * 60 * 60);
+                  
+                  // Active if: 1 hour before (-1) to 5 hours after (5)
+                  return diffHours >= -1 && diffHours <= 5;
+                });
               });
-            });
-            
-            console.log(activeRace ? 'true' : 'false');
+              
+              console.log(activeRace ? 'true' : 'false');
+            })();
           ")
           
           echo "race_active=$RACE_HAPPENING" >> $GITHUB_OUTPUT
