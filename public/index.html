@@ -73,6 +73,18 @@
               <div class="border-t border-slate-200"></div>
               <div class="py-1">
                 <div class="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  Race View
+                </div>
+                <button id="show-past-races"
+                  class="w-full text-left px-4 py-3 md:py-2 text-sm text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition flex items-center justify-between touch-manipulation"
+                  type="button">
+                  <span>Show past races</span>
+                  <span id="show-past-check" class="hidden text-emerald-600">✓</span>
+                </button>
+              </div>
+              <div class="border-t border-slate-200"></div>
+              <div class="py-1">
+                <div class="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wide">
                   Standings View
                 </div>
                 <button id="show-all-standings"
@@ -188,47 +200,9 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      const driverData = [
-        { id: "PIA", name: "Oscar Piastri", team: "McLaren", basePoints: 346 },
-        { id: "NOR", name: "Lando Norris", team: "McLaren", basePoints: 332 },
-        {
-          id: "VER",
-          name: "Max Verstappen",
-          team: "Red Bull",
-          basePoints: 306,
-        },
-        { id: "RUS", name: "George Russell", team: "Mercedes", basePoints: 252 },
-        { id: "LEC", name: "Charles Leclerc", team: "Ferrari", basePoints: 192 },
-        { id: "HAM", name: "Lewis Hamilton", team: "Ferrari", basePoints: 142 },
-        { id: "ANT", name: "Kimi Antonelli", team: "Mercedes", basePoints: 89 },
-        { id: "ALB", name: "Alexander Albon", team: "Williams", basePoints: 73 },
-        { id: "HUL", name: "Nico Hulkenberg", team: "Sauber", basePoints: 41 },
-        { id: "HAD", name: "Isack Hadjar", team: "RB", basePoints: 39 },
-        { id: "SAI", name: "Carlos Sainz Jnr", team: "Williams", basePoints: 38 },
-        { id: "ALO", name: "Fernando Alonso", team: "Aston Martin", basePoints: 37 },
-        { id: "STR", name: "Lance Stroll", team: "Aston Martin", basePoints: 32 },
-        { id: "LAW", name: "Liam Lawson", team: "RB", basePoints: 30 },
-        { id: "OCO", name: "Esteban Ocon", team: "Haas", basePoints: 28 },
-        { id: "TSU", name: "Yuki Tsunoda", team: "Red Bull", basePoints: 28 },
-        { id: "GAS", name: "Pierre Gasly", team: "Alpine", basePoints: 20 },
-        { id: "BEA", name: "Oliver Bearman", team: "Haas", basePoints: 20 },
-        { id: "BOR", name: "Gabriel Bortoleto", team: "Sauber", basePoints: 18 },
-        { id: "COL", name: "Franco Colapinto", team: "Alpine", basePoints: 0 },
-        { id: "DOO", name: "Jack Doohan", team: "Alpine", basePoints: 0 },
-      ];
+      let driverData = [];
 
       const driverLookup = {};
-      driverData.forEach((driver, index) => {
-        const parts = driver.name.split(" ");
-        let shortName = parts[parts.length - 1] || driver.name;
-        if (["Jnr", "Jr", "Jnr.", "Jr."].includes(shortName) && parts.length > 1) {
-          shortName = parts[parts.length - 2];
-        }
-        driver.shortName = shortName;
-        driver.code = createDriverCode(driver.name);
-        driver.baseRank = index + 1;
-        driverLookup[driver.id] = driver;
-      });
 
       const teamPalette = {
         McLaren: {
@@ -319,81 +293,258 @@
 
       const defaultOrder = driverData.map((driver) => driver.id);
 
-      const sessionConfigs = [
-        {
-          id: "mexico-race",
-          label: "Mexico City GP",
-          event: "Mexico City GP",
-          type: "race",
-          description: "High-altitude battle in CDMX.",
-        },
-        {
-          id: "sao-paulo-sprint",
-          label: "São Paulo Sprint",
-          event: "São Paulo GP",
-          type: "sprint",
-          description: "Interlagos showdown on Saturday.",
-        },
-        {
-          id: "sao-paulo-race",
-          label: "São Paulo GP",
-          event: "São Paulo GP",
-          type: "race",
-          description: "Sunday classic at Interlagos.",
-        },
-        {
-          id: "las-vegas-race",
-          label: "Las Vegas GP",
-          event: "Las Vegas GP",
-          type: "race",
-          description: "Neon skyline, midnight start.",
-        },
-        {
-          id: "qatar-sprint",
-          label: "Qatar Sprint",
-          event: "Qatar GP",
-          type: "sprint",
-          description: "Twilight dash around Lusail.",
-        },
-        {
-          id: "qatar-race",
-          label: "Qatar GP",
-          event: "Qatar GP",
-          type: "race",
-          description: "Night race and tyre chess.",
-        },
-        {
-          id: "abu-dhabi-race",
-          label: "Abu Dhabi GP",
-          event: "Abu Dhabi GP",
-          type: "race",
-          description: "Finale beneath the Yas Hotel lights.",
-        },
-      ];
+      // Utility: Get current time (cached for performance during a single render cycle)
+      const getCurrentTime = (() => {
+        let cached = null;
+        return (refresh = false) => {
+          if (!cached || refresh) {
+            cached = new Date();
+          }
+          return cached;
+        };
+      })();
 
-      const sessionsTemplate = sessionConfigs.map((config, index) =>
-        normaliseSession({
-          ...config,
-          positions: config.positions ?? defaultOrder,
-          dnfs: config.dnfs ?? [],
-          enabled: config.enabled ?? (index === 0), // Only first session enabled by default
-        })
-      );
+      // Utility: Check if a session is in the past (using full datetime from API)
+      function isPastRaceSession(sessionId) {
+        const session = sessions.find((s) => s.id === sessionId);
+        if (!session?.date) return false;
+        
+        // Combine date and time from API (e.g., "2025-03-16T04:00:00Z")
+        const sessionTime = session.time || '23:59:59Z';
+        const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+        
+        return sessionDateTime < getCurrentTime();
+      }
 
-      let sessions = cloneSessions(sessionsTemplate);
+      let sessionConfigs = [];
+      let sessionsTemplate = [];
+      let sessions = [];
       let keyDrivers = ["VER", "PIA", "NOR"];
       let standingsFilter = "key"; // "all" or "key"
+      let showPastRaces = false; // false = only future races, true = all races
       let loadedFromHash = false;
-      const dataFromHash = getSessionsFromHash();
-      if (dataFromHash) {
-        sessions = dataFromHash.sessions;
-        if (dataFromHash.keyDrivers) {
-          keyDrivers = dataFromHash.keyDrivers;
+
+      // Function to apply actual race results to sessions
+      function applyRaceResults(sessions, raceResults, sprintResults) {
+        // Create lookup maps by round number
+        const raceResultsByRound = {};
+        const sprintResultsByRound = {};
+        
+        raceResults.forEach(race => {
+          raceResultsByRound[race.round] = race.Results || [];
+        });
+        
+        sprintResults.forEach(race => {
+          sprintResultsByRound[race.round] = race.SprintResults || [];
+        });
+        
+        // Apply results to matching sessions
+        sessions.forEach(session => {
+          if (!session.round) return;
+          
+          let results = null;
+          if (session.type === 'sprint' && sprintResultsByRound[session.round]) {
+            results = sprintResultsByRound[session.round];
+          } else if (session.type === 'race' && raceResultsByRound[session.round]) {
+            results = raceResultsByRound[session.round];
+          }
+          
+          if (!results || results.length === 0) return;
+          
+          // Map results to driver positions
+          const positions = [];
+          const dnfs = [];
+          
+          results.forEach(result => {
+            const driverCode = result.Driver.code;
+            
+            // Check if driver finished the race
+            const status = result.status || '';
+            const isFinished = status === 'Finished' || status.includes('Lap');
+            
+            if (isFinished && driverCode) {
+              positions.push(driverCode);
+            } else if (driverCode) {
+              dnfs.push(driverCode);
+            }
+          });
+          
+          // Only apply if we have valid results
+          if (positions.length > 0) {
+            session.positions = positions;
+            session.dnfs = dnfs;
+          }
+        });
+      }
+
+      // Fetch race data and driver standings from API
+      async function loadRaceData() {
+        try {
+          // Load both race data and driver standings in parallel
+          const [racesResponse, standingsResponse, resultsResponse, sprintResultsResponse] = await Promise.all([
+            fetch('/data/races-2025.json'),
+            fetch('/data/driver-standings-2025.json'),
+            fetch('/data/race-results-2025.json'),
+            fetch('/data/sprint-results-2025.json')
+          ]);
+          
+          const racesData = await racesResponse.json();
+          const standingsData = await standingsResponse.json();
+          const resultsData = await resultsResponse.json();
+          const sprintResultsData = await sprintResultsResponse.json();
+          
+          const races = racesData.MRData.RaceTable.Races;
+          const standings = standingsData.MRData.StandingsTable.StandingsLists[0].DriverStandings;
+          const raceResults = resultsData.MRData.RaceTable.Races;
+          const sprintResults = sprintResultsData.MRData.RaceTable.Races;
+          
+          // Map driver standings to driverData format
+          driverData = standings.map(standing => {
+            const driver = standing.Driver;
+            const constructor = standing.Constructors[0]; // Use first constructor
+            
+            // Create a short ID from driver code
+            const id = driver.code || driver.driverId.substring(0, 3).toUpperCase();
+            
+            return {
+              id: id,
+              name: `${driver.givenName} ${driver.familyName}`,
+              team: constructor.name,
+              basePoints: parseInt(standing.points)
+            };
+          });
+          
+          // Initialize driverLookup and set default key drivers to top 3
+          driverData.forEach((driver, index) => {
+            const parts = driver.name.split(" ");
+            let shortName = parts[parts.length - 1] || driver.name;
+            if (["Jnr", "Jr", "Jnr.", "Jr."].includes(shortName) && parts.length > 1) {
+              shortName = parts[parts.length - 2];
+            }
+            driver.shortName = shortName;
+            driver.code = createDriverCode(driver.name);
+            driver.baseRank = index + 1;
+            driverLookup[driver.id] = driver;
+          });
+          
+          // Set default key drivers to top 3 from standings (if not loading from hash)
+          if (!loadedFromHash && keyDrivers.length === 0) {
+            keyDrivers = driverData.slice(0, 3).map(d => d.id);
+          }
+          
+          // Process races and create session configs
+          sessionConfigs = [];
+          races.forEach((race) => {
+            const hasSprint = !!race.Sprint;
+            const circuitId = race.Circuit.circuitId;
+            const raceName = race.raceName;
+            const locality = race.Circuit.Location.locality;
+            const circuitName = race.Circuit.circuitName;
+            const circuitUrl = race.Circuit.url;
+            
+            // Create a safe ID from race name
+            const baseId = raceName.toLowerCase()
+              .replace(/\s+/g, '-')
+              .replace(/[^a-z0-9-]/g, '');
+            
+            // Add sprint session if race has one
+            if (hasSprint) {
+              sessionConfigs.push({
+                id: `${baseId}-sprint`,
+                label: `${raceName} Sprint`,
+                event: raceName,
+                type: "sprint",
+                description: `Sprint race at ${circuitName}, ${locality}.`,
+                circuitName: circuitName,
+                circuitUrl: circuitUrl,
+                round: race.round,
+                date: race.Sprint.date,
+                time: race.Sprint.time,
+              });
+            }
+            
+            // Add main race session
+            sessionConfigs.push({
+              id: `${baseId}-race`,
+              label: raceName,
+              event: raceName,
+              type: "race",
+              description: `Race at ${circuitName}, ${locality}.`,
+              circuitName: circuitName,
+              circuitUrl: circuitUrl,
+              round: race.round,
+              date: race.date,
+              time: race.time,
+            });
+          });
+
+          // Initialize sessions template
+          sessionsTemplate = sessionConfigs.map((config, index) =>
+            normaliseSession({
+              ...config,
+              positions: config.positions ?? defaultOrder,
+              dnfs: config.dnfs ?? [],
+              enabled: config.enabled ?? (index === 0), // Only first session enabled by default
+            })
+          );
+
+          // Apply actual results to past race sessions
+          applyRaceResults(sessionsTemplate, raceResults, sprintResults);
+
+          sessions = cloneSessions(sessionsTemplate);
+
+          // Check for hash data after loading races
+          const dataFromHash = getSessionsFromHash();
+          if (dataFromHash) {
+            sessions = dataFromHash.sessions;
+            if (dataFromHash.keyDrivers) {
+              keyDrivers = dataFromHash.keyDrivers;
+            }
+            if (dataFromHash.standingsFilter) {
+              standingsFilter = dataFromHash.standingsFilter;
+            }
+            if (dataFromHash.showPastRaces !== undefined) {
+              showPastRaces = dataFromHash.showPastRaces;
+            }
+            loadedFromHash = true;
+          }
+
+          // Initialize the app
+          initializeApp();
+        } catch (error) {
+          console.error('Failed to load race data:', error);
+          // Fallback to empty sessions
+          sessionConfigs = [];
+          sessionsTemplate = [];
+          sessions = [];
+          initializeApp();
         }
-        if (dataFromHash.standingsFilter) {
-          standingsFilter = dataFromHash.standingsFilter;
+      }
+
+      function initializeApp() {
+        renderSessions();
+        recalcAndRenderStandings();
+        updateJsonEditor(true);
+
+        // Update checkmarks based on current standingsFilter
+        if (standingsFilter === "all") {
+          showAllCheck.classList.remove("hidden");
+          showKeyCheck.classList.add("hidden");
+        } else {
+          showAllCheck.classList.add("hidden");
+          showKeyCheck.classList.remove("hidden");
         }
-        loadedFromHash = true;
+
+        // Update checkmark for past races
+        if (showPastRaces) {
+          showPastCheck.classList.remove("hidden");
+        } else {
+          showPastCheck.classList.add("hidden");
+        }
+
+        if (loadedFromHash) {
+          setJsonFeedback("Sessions loaded from shared link.", "info");
+        }
       }
 
       const dragContext = {
@@ -421,6 +572,8 @@
       const showKeyStandingsButton = document.getElementById("show-key-standings");
       const showAllCheck = document.getElementById("show-all-check");
       const showKeyCheck = document.getElementById("show-key-check");
+      const showPastRacesButton = document.getElementById("show-past-races");
+      const showPastCheck = document.getElementById("show-past-check");
       const keyDriversModal = document.getElementById("key-drivers-modal");
       const keyDriversList = document.getElementById("key-drivers-list");
       const cancelKeyDriversButton = document.getElementById("cancel-key-drivers");
@@ -428,22 +581,8 @@
 
       let tempKeyDrivers = [];
 
-      renderSessions();
-      recalcAndRenderStandings();
-      updateJsonEditor(true);
-
-      // Update checkmarks based on current standingsFilter
-      if (standingsFilter === "all") {
-        showAllCheck.classList.remove("hidden");
-        showKeyCheck.classList.add("hidden");
-      } else {
-        showAllCheck.classList.add("hidden");
-        showKeyCheck.classList.remove("hidden");
-      }
-
-      if (loadedFromHash) {
-        setJsonFeedback("Sessions loaded from shared link.", "info");
-      }
+      // Load race data and start the app
+      loadRaceData();
 
       // Dropdown menu toggle
       menuButton.addEventListener("click", (e) => {
@@ -461,7 +600,7 @@
       restoreDefaultsButton.addEventListener("click", () => {
         dropdownMenu.classList.add("hidden");
         sessions = cloneSessions(sessionsTemplate);
-        keyDrivers = ["VER", "PIA", "NOR"]; // Reset to default key drivers
+        keyDrivers = driverData.slice(0, 3).map(d => d.id); // Reset to top 3 from standings
         renderSessions();
         recalcAndRenderStandings();
         updateJsonEditor(true);
@@ -491,6 +630,17 @@
         showAllCheck.classList.add("hidden");
         showKeyCheck.classList.remove("hidden");
         recalcAndRenderStandings();
+        updateJsonEditor(true);
+      });
+
+      showPastRacesButton.addEventListener("click", () => {
+        showPastRaces = !showPastRaces;
+        if (showPastRaces) {
+          showPastCheck.classList.remove("hidden");
+        } else {
+          showPastCheck.classList.add("hidden");
+        }
+        renderSessions();
         updateJsonEditor(true);
       });
 
@@ -583,7 +733,15 @@
       }
 
       function setMaxP1ForAll() {
+        let futureCount = 0;
         sessions.forEach((session) => {
+          // Skip past races - they're read-only
+          if (isPastRaceSession(session.id)) {
+            return;
+          }
+
+          futureCount++;
+
           // Check if VER is in positions or DNF
           const verInPositions = session.positions.includes("VER");
           const verInDnf = session.dnfs.includes("VER");
@@ -605,7 +763,7 @@
         renderSessions();
         recalcAndRenderStandings();
         updateJsonEditor(true);
-        setJsonFeedback("Max set to P1 for all sessions.", "success");
+        setJsonFeedback(`Max set to P1 for ${futureCount} future race${futureCount !== 1 ? 's' : ''}.`, "success");
       }
 
       function createDriverCode(name) {
@@ -711,12 +869,13 @@
 
           // Handle both old format (array) and new format (object with keyDrivers)
           if (Array.isArray(parsed)) {
-            return { sessions: buildSessionsFromData(parsed), keyDrivers: null, standingsFilter: null };
+            return { sessions: buildSessionsFromData(parsed), keyDrivers: null, standingsFilter: null, showPastRaces: null };
           } else if (parsed && typeof parsed === 'object') {
             const result = {
               sessions: buildSessionsFromData(parsed.sessions || []),
               keyDrivers: parsed.keyDrivers || null,
-              standingsFilter: parsed.standingsFilter || null
+              standingsFilter: parsed.standingsFilter || null,
+              showPastRaces: parsed.showPastRaces !== undefined ? parsed.showPastRaces : null
             };
             return result;
           }
@@ -731,6 +890,7 @@
           const shareable = {
             keyDrivers: serialisable.keyDrivers,
             standingsFilter: serialisable.standingsFilter,
+            showPastRaces: serialisable.showPastRaces,
             sessions: serialisable.sessions.map((session) => ({
               id: session.id,
               positions: session.positions,
@@ -755,7 +915,23 @@
 
       function renderSessions() {
         sessionsContainer.innerHTML = "";
-        sessions.forEach((session) => {
+        
+        // Filter sessions based on showPastRaces setting
+        const now = getCurrentTime(true); // Refresh cache for new render
+        
+        const visibleSessions = sessions.filter((session) => {
+          if (showPastRaces) return true; // Show all sessions
+          
+          // Only show future races (using exact datetime from API)
+          if (session.date) {
+            const sessionTime = session.time || '23:59:59Z';
+            const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+            return sessionDateTime >= now;
+          }
+          return true; // Show sessions without dates
+        });
+        
+        visibleSessions.forEach((session) => {
           const card = buildSessionCard(session);
           sessionsContainer.appendChild(card);
         });
@@ -764,8 +940,23 @@
 
       function buildSessionCard(session) {
         const card = document.createElement("article");
+        
+        // Check if session is in the past (using exact datetime from API)
+        let isPastRace = false;
+        if (session.date) {
+          const sessionTime = session.time || '23:59:59Z';
+          const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+          isPastRace = sessionDateTime < getCurrentTime();
+        }
+        
         card.className =
           "rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm shadow-slate-200/50";
+        
+        // Add visual indicator for past races
+        if (isPastRace) {
+          card.style.opacity = "0.7";
+          card.style.backgroundColor = "#fafafa";
+        }
 
         const header = document.createElement("div");
         header.className = "flex flex-wrap items-center justify-between gap-3 text-sm mb-4";
@@ -774,11 +965,33 @@
         const title = document.createElement("h3");
         title.className = "text-sm md:text-base font-semibold text-slate-900";
         title.textContent = session.label;
+        
+        // Add "Past Race" badge if applicable
+        if (isPastRace) {
+          const pastBadge = document.createElement("span");
+          pastBadge.className = "ml-2 text-xs font-normal text-slate-500 bg-slate-200 px-2 py-0.5 rounded";
+          pastBadge.textContent = "Past Race";
+          title.appendChild(pastBadge);
+        }
+        
         titleWrapper.appendChild(title);
         if (session.description) {
           const description = document.createElement("p");
           description.className = "text-xs text-slate-500";
-          description.textContent = session.description;
+          
+          // If circuit URL exists, make description clickable
+          if (session.circuitUrl) {
+            const link = document.createElement("a");
+            link.href = session.circuitUrl;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = session.description;
+            link.className = "hover:text-slate-700 hover:underline transition";
+            description.appendChild(link);
+          } else {
+            description.textContent = session.description;
+          }
+          
           titleWrapper.appendChild(description);
         }
         header.appendChild(titleWrapper);
@@ -794,6 +1007,7 @@
         toggleInput.type = "checkbox";
         toggleInput.checked = session.enabled;
         toggleInput.className = "sr-only";
+        // Allow toggle even for past races - users need to see standings impact
         toggleInput.addEventListener("change", () => {
           toggleSession(session.id);
         });
@@ -822,8 +1036,17 @@
         resetButton.className =
           "rounded-full border border-slate-300 px-3 py-1.5 md:py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-600 transition hover:border-f1-red/40 hover:text-f1-red active:bg-red-50 touch-manipulation";
         resetButton.textContent = "Reset";
+        resetButton.disabled = isPastRace; // Disable reset for past races
+        
+        if (isPastRace) {
+          resetButton.className = "rounded-full border border-slate-200 px-3 py-1.5 md:py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-slate-400 cursor-not-allowed";
+          resetButton.title = "Cannot reset past races";
+        }
+        
         resetButton.addEventListener("click", () => {
-          resetSession(session.id);
+          if (!isPastRace) {
+            resetSession(session.id);
+          }
         });
         headerActions.appendChild(resetButton);
 
@@ -859,7 +1082,7 @@
         session.positions.forEach((driverId, index) => {
           const driver = driverLookup[driverId];
           if (!driver) return;
-          const badge = createOrderBadge(session, driver, index, pointsTable[index] || 0);
+          const badge = createOrderBadge(session, driver, index, pointsTable[index] || 0, isPastRace);
           orderContainer.appendChild(badge);
         });
         badgeSection.appendChild(orderContainer);
@@ -894,7 +1117,7 @@
           session.dnfs.forEach((driverId, index) => {
             const driver = driverLookup[driverId];
             if (!driver) return;
-            const badge = createDnfBadge(session, driver, index);
+            const badge = createDnfBadge(session, driver, index, isPastRace);
             dnfBadges.appendChild(badge);
           });
           dnfContainer.appendChild(dnfBadges);
@@ -905,12 +1128,22 @@
         return card;
       }
 
-      function createOrderBadge(session, driver, index, points) {
+      function createOrderBadge(session, driver, index, points, isPastRace = false) {
         const badge = document.createElement("div");
         badge.className =
-          "group flex cursor-move select-none items-center gap-1.5 md:gap-2 rounded-lg border px-2.5 py-2 md:px-3 text-sm font-semibold shadow-sm transition hover:-translate-y-[1px] active:scale-95 touch-manipulation";
-        badge.draggable = true;
-        badge.title = `${driver.name} · ${driver.team}`;
+          "group flex select-none items-center gap-1.5 md:gap-2 rounded-lg border px-2.5 py-2 md:px-3 text-sm font-semibold shadow-sm transition touch-manipulation";
+        
+        // Only make draggable if not a past race
+        if (!isPastRace) {
+          badge.className += " cursor-move hover:-translate-y-[1px] active:scale-95";
+          badge.draggable = true;
+        } else {
+          badge.className += " cursor-not-allowed opacity-60";
+          badge.draggable = false;
+          badge.title = "Past race - cannot modify";
+        }
+        
+        badge.title = badge.title || `${driver.name} · ${driver.team}`;
         badge.dataset.sessionId = session.id;
         badge.dataset.index = index.toString();
         badge.dataset.driverId = driver.id;
@@ -940,16 +1173,19 @@
           badge.style.backgroundColor = "#ffffff";
         });
 
-        badge.addEventListener("dragstart", (event) =>
-          handleBadgeDragStart(event, session.id, "order", index)
-        );
-        badge.addEventListener("dragend", handleBadgeDragEnd);
-        badge.addEventListener("dragenter", (event) =>
-          handleOrderBadgeDragEnter(event, session.id)
-        );
-        badge.addEventListener("drop", (event) =>
-          handleOrderBadgeDrop(event, session.id, index)
-        );
+        // Only add drag events if not a past race
+        if (!isPastRace) {
+          badge.addEventListener("dragstart", (event) =>
+            handleBadgeDragStart(event, session.id, "order", index)
+          );
+          badge.addEventListener("dragend", handleBadgeDragEnd);
+          badge.addEventListener("dragenter", (event) =>
+            handleOrderBadgeDragEnter(event, session.id)
+          );
+          badge.addEventListener("drop", (event) =>
+            handleOrderBadgeDrop(event, session.id, index)
+          );
+        }
 
         const place = document.createElement("span");
         place.className = "text-xs font-semibold min-w-[1rem]";
@@ -972,12 +1208,22 @@
         return badge;
       }
 
-      function createDnfBadge(session, driver, index) {
+      function createDnfBadge(session, driver, index, isPastRace = false) {
         const badge = document.createElement("div");
         badge.className =
-          "group flex cursor-move select-none items-center gap-1.5 md:gap-2 rounded-lg border px-2.5 py-2 md:px-3 text-sm font-semibold shadow-sm transition hover:-translate-y-[1px] active:scale-95 touch-manipulation";
-        badge.draggable = true;
-        badge.title = `${driver.name} · ${driver.team}`;
+          "group flex select-none items-center gap-1.5 md:gap-2 rounded-lg border px-2.5 py-2 md:px-3 text-sm font-semibold shadow-sm transition touch-manipulation";
+        
+        // Only make draggable if not a past race
+        if (!isPastRace) {
+          badge.className += " cursor-move hover:-translate-y-[1px] active:scale-95";
+          badge.draggable = true;
+        } else {
+          badge.className += " cursor-not-allowed opacity-60";
+          badge.draggable = false;
+          badge.title = "Past race - cannot modify";
+        }
+        
+        badge.title = badge.title || `${driver.name} · ${driver.team}`;
         badge.dataset.sessionId = session.id;
         badge.dataset.index = index.toString();
         badge.dataset.driverId = driver.id;
@@ -1006,10 +1252,13 @@
           badge.style.backgroundColor = "#ffffff";
         });
 
-        badge.addEventListener("dragstart", (event) =>
-          handleBadgeDragStart(event, session.id, "dnf", index)
-        );
-        badge.addEventListener("dragend", handleBadgeDragEnd);
+        // Only add drag events if not a past race
+        if (!isPastRace) {
+          badge.addEventListener("dragstart", (event) =>
+            handleBadgeDragStart(event, session.id, "dnf", index)
+          );
+          badge.addEventListener("dragend", handleBadgeDragEnd);
+        }
 
         const label = document.createElement("span");
         label.className = "text-xs font-semibold";
@@ -1046,6 +1295,8 @@
 
       function handleOrderBadgeDragEnter(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) return;
+        
         event.preventDefault();
         const container = event.currentTarget.parentElement;
         const index = computeInsertPosition(container, event.clientX, event.clientY);
@@ -1055,6 +1306,11 @@
 
       function handleOrderBadgeDrop(event, sessionId, targetIndex) {
         if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) {
+          clearInsertIndicator();
+          return;
+        }
+        
         event.preventDefault();
         event.stopPropagation();
         const index =
@@ -1065,6 +1321,8 @@
 
       function handleOrderContainerDragOver(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) return;
+        
         event.preventDefault();
         const container = event.currentTarget;
         const index = computeInsertPosition(
@@ -1078,6 +1336,11 @@
 
       function handleOrderContainerDrop(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) {
+          clearInsertIndicator();
+          return;
+        }
+        
         event.preventDefault();
         const defaultIndex =
           sessions.find((s) => s.id === sessionId)?.positions.length ?? 0;
@@ -1089,6 +1352,8 @@
 
       function handleDnfDragOver(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) return;
+        
         event.preventDefault();
         clearInsertIndicator();
         event.currentTarget.classList.add("border-rose-400", "bg-rose-100");
@@ -1096,6 +1361,12 @@
 
       function handleDnfDrop(event, sessionId) {
         if (!isValidDragTarget(sessionId)) return;
+        if (isPastRaceSession(sessionId)) {
+          event.currentTarget.classList.remove("border-rose-400", "bg-rose-100");
+          clearInsertIndicator();
+          return;
+        }
+        
         event.preventDefault();
         event.currentTarget.classList.remove("border-rose-400", "bg-rose-100");
         sendDriverToDnf(sessionId);
@@ -1387,6 +1658,17 @@
           // Skip disabled sessions
           if (!session.enabled) return;
 
+          // Only add points from FUTURE races
+          // Past race points are already included in basePoints from API
+          let isFutureRace = true;
+          if (session.date) {
+            const sessionTime = session.time || '23:59:59Z';
+            const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+            isFutureRace = sessionDateTime >= getCurrentTime();
+          }
+          
+          if (!isFutureRace) return; // Skip past races - their points are already in basePoints
+
           const pointsTable = scoring[session.type] || [];
           session.positions.forEach((driverId, index) => {
             if (!driverId) return;
@@ -1553,6 +1835,7 @@
         const serialisable = {
           keyDrivers: keyDrivers,
           standingsFilter: standingsFilter,
+          showPastRaces: showPastRaces,
           sessions: sessions.map((session) => ({
             id: session.id,
             label: session.label,
@@ -1590,6 +1873,15 @@
               } else {
                 showAllCheck.classList.add("hidden");
                 showKeyCheck.classList.remove("hidden");
+              }
+            }
+            if (parsed.showPastRaces !== undefined) {
+              showPastRaces = parsed.showPastRaces;
+              // Update checkmark
+              if (showPastRaces) {
+                showPastCheck.classList.remove("hidden");
+              } else {
+                showPastCheck.classList.add("hidden");
               }
             }
             if (parsed.sessions && Array.isArray(parsed.sessions)) {
