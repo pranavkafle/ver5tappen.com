@@ -1,0 +1,147 @@
+name: Update F1 Standings
+
+on:
+  # Run every 15 minutes on race weekends (Friday-Sunday)
+  schedule:
+    - cron: '*/15 * * * 5-0'  # Every 15 min on Fri-Sun
+    - cron: '0 0 * * 1-4'     # Once daily at midnight UTC on Mon-Thu
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  update-standings:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Check if race is happening now
+        id: check_race
+        run: |
+          # Get current UTC time
+          CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:00:00Z")
+          CURRENT_DATE=$(date -u +"%Y-%m-%d")
+          CURRENT_HOUR=$(date -u +"%H")
+          DAY_OF_WEEK=$(date -u +"%u")  # 1=Monday, 7=Sunday
+          
+          # Parse races-2025.json to check if a race is happening
+          RACE_HAPPENING=$(node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('data/races-2025.json', 'utf8'));
+            const races = data.MRData.RaceTable.Races;
+            const now = new Date('$CURRENT_TIME');
+            const dayOfWeek = $DAY_OF_WEEK;
+            
+            // On Mon-Thu (1-4), always return true for daily update
+            if (dayOfWeek >= 1 && dayOfWeek <= 4) {
+              console.log('true');
+              return;
+            }
+            
+            // On Fri-Sun (5-7), check if any race or sprint is within 1 hour before OR 5 hours after
+            const activeRace = races.find(race => {
+              const checkTimes = [
+                race.date + 'T' + (race.time || '00:00:00Z'),
+                race.Sprint ? race.Sprint.date + 'T' + (race.Sprint.time || '00:00:00Z') : null
+              ].filter(Boolean);
+              
+              return checkTimes.some(timeStr => {
+                const raceTime = new Date(timeStr);
+                const diffMs = now - raceTime;
+                const diffHours = diffMs / (1000 * 60 * 60);
+                
+                // Active if: 1 hour before (-1) to 5 hours after (5)
+                return diffHours >= -1 && diffHours <= 5;
+              });
+            });
+            
+            console.log(activeRace ? 'true' : 'false');
+          ")
+          
+          echo "race_active=$RACE_HAPPENING" >> $GITHUB_OUTPUT
+          echo "Should update: $RACE_HAPPENING (Day of week: $DAY_OF_WEEK)"
+      
+      - name: Update driver standings
+        if: steps.check_race.outputs.race_active == 'true'
+        run: |
+          echo "Race is active! Updating standings..."
+          
+          # Fetch latest standings
+          curl -s "https://api.jolpi.ca/ergast/f1/current/driverstandings.json" > data/driver-standings-2025.json
+          
+          # Verify the file is valid JSON
+          if jq empty data/driver-standings-2025.json 2>/dev/null; then
+            echo "✅ Successfully fetched driver standings"
+            cat data/driver-standings-2025.json | jq '.MRData.StandingsTable.StandingsLists[0].DriverStandings | length'
+          else
+            echo "❌ Failed to fetch valid standings data"
+            exit 1
+          fi
+      
+      - name: Update race schedule
+        if: steps.check_race.outputs.race_active == 'true'
+        run: |
+          echo "Updating race schedule..."
+          
+          # Fetch latest race data
+          curl -s "https://api.jolpi.ca/ergast/f1/2025.json" > data/races-2025.json
+          
+          # Verify the file is valid JSON
+          if jq empty data/races-2025.json 2>/dev/null; then
+            echo "✅ Successfully fetched race data"
+            cat data/races-2025.json | jq '.MRData.RaceTable.Races | length'
+          else
+            echo "❌ Failed to fetch valid race data"
+            exit 1
+          fi
+      
+      - name: Update race results
+        if: steps.check_race.outputs.race_active == 'true'
+        run: |
+          echo "Updating race results..."
+          
+          # Fetch latest race results
+          curl -s "https://api.jolpi.ca/ergast/f1/2025/results.json?limit=100" > data/race-results-2025.json
+          
+          # Fetch latest sprint results
+          curl -s "https://api.jolpi.ca/ergast/f1/2025/sprint.json?limit=100" > data/sprint-results-2025.json
+          
+          # Verify the files are valid JSON
+          if jq empty data/race-results-2025.json 2>/dev/null && jq empty data/sprint-results-2025.json 2>/dev/null; then
+            RACE_COUNT=$(cat data/race-results-2025.json | jq '.MRData.RaceTable.Races | length')
+            SPRINT_COUNT=$(cat data/sprint-results-2025.json | jq '.MRData.RaceTable.Races | length')
+            echo "✅ Successfully fetched $RACE_COUNT race results and $SPRINT_COUNT sprint results"
+          else
+            echo "❌ Failed to fetch valid results data"
+            exit 1
+          fi
+      
+      - name: Commit and push if changed
+        if: steps.check_race.outputs.race_active == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Check if there are changes
+          if git diff --quiet data/driver-standings-2025.json data/races-2025.json data/race-results-2025.json data/sprint-results-2025.json; then
+            echo "No changes detected"
+          else
+            git add data/driver-standings-2025.json data/races-2025.json data/race-results-2025.json data/sprint-results-2025.json
+            
+            # Get current leader info for commit message
+            LEADER=$(jq -r '.MRData.StandingsTable.StandingsLists[0].DriverStandings[0] | "\(.Driver.code) - \(.points)pts"' data/driver-standings-2025.json)
+            
+            git commit -m "🏎️ Update F1 standings - Leader: $LEADER"
+            git push
+            echo "✅ Changes committed and pushed"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
