@@ -3,8 +3,8 @@ name: Update F1 Standings
 on:
   # Run every 15 minutes on race weekends (Friday-Sunday)
   schedule:
-    - cron: '*/15 * * * 5-0'  # Every 15 min on Fri-Sun
-    - cron: '0 0 * * 1-4'     # Once daily at midnight UTC on Mon-Thu
+    - cron: '*/15 * * * 0,5-6'  # Every 15 min on Fri-Sun (5=Fri, 6=Sat, 0=Sun)
+    - cron: '0 0 * * 1-4'        # Once daily at midnight UTC on Mon-Thu
   
   # Allow manual trigger
   workflow_dispatch:
