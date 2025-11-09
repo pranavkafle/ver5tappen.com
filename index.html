@@ -382,10 +382,10 @@
         try {
           // Load both race data and driver standings in parallel
           const [racesResponse, standingsResponse, resultsResponse, sprintResultsResponse] = await Promise.all([
-            fetch('/data/races-2025.json'),
-            fetch('/data/driver-standings-2025.json'),
-            fetch('/data/race-results-2025.json'),
-            fetch('/data/sprint-results-2025.json')
+            fetch('data/races-2025.json'),
+            fetch('data/driver-standings-2025.json'),
+            fetch('data/race-results-2025.json'),
+            fetch('data/sprint-results-2025.json')
           ]);
           
           const racesData = await racesResponse.json();
