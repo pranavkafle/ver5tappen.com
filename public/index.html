@@ -293,18 +293,27 @@
 
       const defaultOrder = driverData.map((driver) => driver.id);
 
-      // Utility: Get today's date at midnight (cached for performance)
-      const getTodayMidnight = (() => {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD in UTC
-        return () => today;
+      // Utility: Get current time (cached for performance during a single render cycle)
+      const getCurrentTime = (() => {
+        let cached = null;
+        return (refresh = false) => {
+          if (!cached || refresh) {
+            cached = new Date();
+          }
+          return cached;
+        };
       })();
 
-      // Utility: Check if a session is in the past
+      // Utility: Check if a session is in the past (using full datetime from API)
       function isPastRaceSession(sessionId) {
         const session = sessions.find((s) => s.id === sessionId);
         if (!session?.date) return false;
-        // Compare dates as strings in YYYY-MM-DD format (same as API)
-        return session.date < getTodayMidnight();
+        
+        // Combine date and time from API (e.g., "2025-03-16T04:00:00Z")
+        const sessionTime = session.time || '23:59:59Z';
+        const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+        
+        return sessionDateTime < getCurrentTime();
       }
 
       let sessionConfigs = [];
@@ -445,6 +454,7 @@
                 circuitUrl: circuitUrl,
                 round: race.round,
                 date: race.Sprint.date,
+                time: race.Sprint.time,
               });
             }
             
@@ -459,6 +469,7 @@
               circuitUrl: circuitUrl,
               round: race.round,
               date: race.date,
+              time: race.time,
             });
           });
 
@@ -893,12 +904,16 @@
         sessionsContainer.innerHTML = "";
         
         // Filter sessions based on showPastRaces setting
+        const now = getCurrentTime(true); // Refresh cache for new render
+        
         const visibleSessions = sessions.filter((session) => {
           if (showPastRaces) return true; // Show all sessions
           
-          // Only show future races (using same date format as API)
+          // Only show future races (using exact datetime from API)
           if (session.date) {
-            return session.date >= getTodayMidnight();
+            const sessionTime = session.time || '23:59:59Z';
+            const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+            return sessionDateTime >= now;
           }
           return true; // Show sessions without dates
         });
@@ -913,8 +928,13 @@
       function buildSessionCard(session) {
         const card = document.createElement("article");
         
-        // Check if session is in the past (using same date format as API)
-        const isPastRace = session.date ? session.date < getTodayMidnight() : false;
+        // Check if session is in the past (using exact datetime from API)
+        let isPastRace = false;
+        if (session.date) {
+          const sessionTime = session.time || '23:59:59Z';
+          const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+          isPastRace = sessionDateTime < getCurrentTime();
+        }
         
         card.className =
           "rounded-xl border border-slate-200 bg-white p-4 md:p-6 shadow-sm shadow-slate-200/50";
@@ -1625,9 +1645,14 @@
           // Skip disabled sessions
           if (!session.enabled) return;
 
-          // Only add points from FUTURE races (today and onwards)
+          // Only add points from FUTURE races
           // Past race points are already included in basePoints from API
-          const isFutureRace = session.date ? session.date >= getTodayMidnight() : true;
+          let isFutureRace = true;
+          if (session.date) {
+            const sessionTime = session.time || '23:59:59Z';
+            const sessionDateTime = new Date(session.date + 'T' + sessionTime);
+            isFutureRace = sessionDateTime >= getCurrentTime();
+          }
           
           if (!isFutureRace) return; // Skip past races - their points are already in basePoints
 
